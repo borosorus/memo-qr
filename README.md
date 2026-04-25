@@ -15,6 +15,8 @@ Use the Encrypt tab to enter a BIP39 English mnemonic and QR unlock password. Pr
 
 Use the Recover tab to paste the encrypted payload and enter the QR unlock password. The mnemonic is only shown after successful decryption.
 
+The Recover tab also includes optional camera scanning. Browsers usually allow camera access only on HTTPS origins or `localhost`; if camera access is unavailable, paste the encrypted payload instead.
+
 ## Security Model
 
 This protects against someone seeing, scanning, photographing, or copying the printed encrypted QR code. They still need the QR unlock password to recover the mnemonic.
@@ -41,6 +43,7 @@ Included:
 - Encrypt an existing BIP39 English mnemonic.
 - Decrypt an encrypted Memo QR payload.
 - Render a printable encrypted QR.
+- Scan an encrypted QR with a desktop webcam or mobile camera when the browser allows camera access.
 - Provide encrypted text payload backup.
 
 Excluded:

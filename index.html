@@ -76,6 +76,18 @@
                 <span>Encrypted QR payload</span>
                 <textarea id="payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
               </label>
+              <div class="scanner" id="scanner">
+                <div class="actions scanner-actions">
+                  <button id="scan-button" type="button">Scan QR</button>
+                  <button id="stop-scan-button" type="button" hidden>Stop camera</button>
+                </div>
+                <div id="scanner-preview" class="scanner-preview" hidden>
+                  <video id="scan-video" muted playsinline></video>
+                  <div class="scan-frame" aria-hidden="true"></div>
+                </div>
+                <canvas id="scan-canvas" hidden></canvas>
+                <p id="scan-message" class="message">Camera scanning requires HTTPS or localhost. Paste works everywhere.</p>
+              </div>
               <label>
                 <span>QR unlock password</span>
                 <input id="recover-password" type="password" autocomplete="current-password">
@@ -124,6 +136,7 @@
     </section>
 
     <script src="qr.min.js"></script>
+    <script src="jsqr.min.js"></script>
     <script src="bip39-english.js"></script>
     <script src="app.js"></script>
   </body>

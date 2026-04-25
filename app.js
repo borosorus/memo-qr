@@ -22,12 +22,22 @@ const elements = {
   recoveredMnemonic: $("#recovered-mnemonic"),
   encryptMessage: $("#encrypt-message"),
   recoverMessage: $("#recover-message"),
+  scanButton: $("#scan-button"),
+  stopScanButton: $("#stop-scan-button"),
+  scannerPreview: $("#scanner-preview"),
+  scanVideo: $("#scan-video"),
+  scanCanvas: $("#scan-canvas"),
+  scanMessage: $("#scan-message"),
   qrOutput: $("#qr-output"),
   printQr: $("#print-qr"),
   printButton: $("#print-button"),
   copyPayloadButton: $("#copy-payload-button"),
   copyMnemonicButton: $("#copy-mnemonic-button")
 };
+
+let scannerStream = null;
+let scannerFrameId = null;
+let scannerBusy = false;
 
 function normalizeMnemonic(input) {
   return input.trim().toLowerCase().replace(/\s+/g, " ");
@@ -195,6 +205,7 @@ function renderQR(text) {
 }
 
 function clearSecrets() {
+  stopScanner("Camera stopped. Paste works everywhere.");
   elements.mnemonic.value = "";
   elements.encryptPassword.value = "";
   elements.confirmPassword.value = "";
@@ -229,6 +240,7 @@ async function copyText(text, messageNode) {
 }
 
 function switchTab(name) {
+  if (name !== "recover") stopScanner("Camera stopped. Paste works everywhere.");
   for (const tab of document.querySelectorAll(".tab")) {
     const active = tab.dataset.tab === name;
     tab.classList.toggle("active", active);
@@ -239,6 +251,104 @@ function switchTab(name) {
     panel.classList.toggle("active", active);
     panel.hidden = !active;
   }
+}
+
+function isCameraSupported() {
+  return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof jsQR === "function");
+}
+
+async function requestCameraStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false
+    });
+  } catch (error) {
+    if (error && (error.name === "NotAllowedError" || error.name === "SecurityError")) throw error;
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  }
+}
+
+async function startScanner() {
+  if (!isCameraSupported()) {
+    setMessage(elements.scanMessage, "Camera scanning is unavailable. Paste the encrypted payload instead.", "error");
+    return;
+  }
+
+  stopScanner();
+  setMessage(elements.scanMessage, "Starting camera...");
+  elements.scanButton.disabled = true;
+
+  try {
+    scannerStream = await requestCameraStream();
+    elements.scanVideo.srcObject = scannerStream;
+    elements.scannerPreview.hidden = false;
+    elements.stopScanButton.hidden = false;
+    await elements.scanVideo.play();
+    elements.scanButton.disabled = false;
+    setMessage(elements.scanMessage, "Point the camera at a Memo QR code.");
+    scanFrame();
+  } catch {
+    elements.scanButton.disabled = false;
+    stopScanner("Camera unavailable. Paste the encrypted payload instead.", "error");
+  }
+}
+
+function stopScanner(message, type = "") {
+  if (scannerFrameId !== null) {
+    cancelAnimationFrame(scannerFrameId);
+    scannerFrameId = null;
+  }
+
+  if (scannerStream) {
+    for (const track of scannerStream.getTracks()) track.stop();
+    scannerStream = null;
+  }
+
+  scannerBusy = false;
+  elements.scanVideo.pause();
+  elements.scanVideo.srcObject = null;
+  elements.scannerPreview.hidden = true;
+  elements.stopScanButton.hidden = true;
+  elements.scanButton.disabled = !isCameraSupported();
+  if (message !== undefined) setMessage(elements.scanMessage, message, type);
+}
+
+function scanFrame() {
+  if (!scannerStream) return;
+  scannerFrameId = requestAnimationFrame(scanFrame);
+
+  const video = elements.scanVideo;
+  if (scannerBusy || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
+  scannerBusy = true;
+  const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
+  const width = Math.max(1, Math.floor(video.videoWidth * scale));
+  const height = Math.max(1, Math.floor(video.videoHeight * scale));
+  const canvas = elements.scanCanvas;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  canvas.width = width;
+  canvas.height = height;
+  context.drawImage(video, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const result = jsQR(imageData.data, width, height, { inversionAttempts: "dontInvert" });
+  scannerBusy = false;
+
+  if (result && result.data) handleScanResult(result.data);
+}
+
+function handleScanResult(rawValue) {
+  const payload = rawValue.trim();
+  if (!payload.startsWith(PREFIX)) {
+    setMessage(elements.scanMessage, "Not a Memo QR payload.");
+    return;
+  }
+
+  elements.payloadInput.value = payload;
+  setMessage(elements.recoverMessage, "");
+  stopScanner("QR payload scanned.", "success");
 }
 
 async function handleEncrypt(event) {
@@ -265,6 +375,7 @@ async function handleEncrypt(event) {
 
 async function handleRecover(event) {
   event.preventDefault();
+  stopScanner("Camera stopped. Paste works everywhere.");
   setBusy(elements.recoverForm, true);
   elements.recoveredMnemonic.value = "";
   elements.copyMnemonicButton.disabled = true;
@@ -307,6 +418,17 @@ function init() {
   elements.printButton.addEventListener("click", () => window.print());
   elements.copyPayloadButton.addEventListener("click", () => copyText(elements.payloadOutput.value, elements.encryptMessage));
   elements.copyMnemonicButton.addEventListener("click", () => copyText(elements.recoveredMnemonic.value, elements.recoverMessage));
+  elements.scanButton.addEventListener("click", startScanner);
+  elements.stopScanButton.addEventListener("click", () => stopScanner("Camera stopped. Paste works everywhere."));
+  window.addEventListener("beforeunload", () => stopScanner());
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopScanner("Camera stopped. Paste works everywhere.");
+  });
+
+  if (!isCameraSupported()) {
+    elements.scanButton.disabled = true;
+    setMessage(elements.scanMessage, "Camera scanning is unavailable. Paste the encrypted payload instead.");
+  }
 
   for (const tab of document.querySelectorAll(".tab")) {
     tab.addEventListener("click", () => switchTab(tab.dataset.tab));
