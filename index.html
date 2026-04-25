@@ -41,11 +41,17 @@
               </label>
               <label>
                 <span>QR unlock password</span>
-                <input id="encrypt-password" type="password" autocomplete="new-password">
+                <span class="password-row">
+                  <input id="encrypt-password" type="password" autocomplete="new-password">
+                  <button class="toggle-password" type="button" data-toggle-password="encrypt-password" aria-label="Show QR unlock password">Show</button>
+                </span>
               </label>
               <label>
                 <span>Confirm QR unlock password</span>
-                <input id="confirm-password" type="password" autocomplete="new-password">
+                <span class="password-row">
+                  <input id="confirm-password" type="password" autocomplete="new-password">
+                  <button class="toggle-password" type="button" data-toggle-password="confirm-password" aria-label="Show confirmed QR unlock password">Show</button>
+                </span>
               </label>
               <div class="actions">
                 <button class="primary" type="submit">Encrypt & Generate QR</button>
@@ -90,7 +96,10 @@
               </div>
               <label>
                 <span>QR unlock password</span>
-                <input id="recover-password" type="password" autocomplete="current-password">
+                <span class="password-row">
+                  <input id="recover-password" type="password" autocomplete="current-password">
+                  <button class="toggle-password" type="button" data-toggle-password="recover-password" aria-label="Show QR unlock password">Show</button>
+                </span>
               </label>
               <div class="actions">
                 <button class="primary" type="submit">Decrypt</button>

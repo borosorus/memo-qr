@@ -25,6 +25,12 @@ This does not protect against weak passwords, malware, compromised browser exten
 
 Anyone with the QR can try unlimited password guesses offline. Use at least 6 random words or 16+ random characters.
 
+## Best-Effort Cleanup
+
+The Clear buttons remove visible secrets from the page, stop the camera, clear generated QR output, and zero temporary byte arrays controlled by the app where browser JavaScript allows it.
+
+This is not guaranteed secure memory erasure. Browser strings, DOM input internals, Web Crypto internals, clipboard contents, browser or OS snapshots, extensions, malware, screenshots, and swap memory cannot be reliably overwritten by this page.
+
 ## Implementation
 
 - Crypto: browser Web Crypto API only.
@@ -32,6 +38,7 @@ Anyone with the QR can try unlimited password guesses offline. Use at least 6 ra
 - Encryption: AES-256-GCM with a random 16-byte salt and random 12-byte IV.
 - Payload: `MNQR1.<base64url-json>`.
 - QR: local vendored `qrcode-generator` runtime.
+- QR scanning: local vendored `jsQR` runtime.
 - Storage: none.
 
 The app intentionally does not use cookies, `localStorage`, `sessionStorage`, IndexedDB, service workers, analytics, remote fonts, CDN imports, or server calls.
@@ -49,7 +56,6 @@ Included:
 Excluded:
 
 - Mnemonic generation.
-- QR camera scanning.
 - BIP39 passphrase storage.
 - Wallet derivation paths or address generation.
 - Password recovery.

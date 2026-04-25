@@ -40,6 +40,15 @@ let scannerStream = null;
 let scannerFrameId = null;
 let scannerBusy = false;
 
+function wipeBytes(value) {
+  if (!value) return;
+  if (value instanceof ArrayBuffer) {
+    new Uint8Array(value).fill(0);
+    return;
+  }
+  if (ArrayBuffer.isView(value)) value.fill(0);
+}
+
 function normalizeMnemonic(input) {
   return input.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -80,10 +89,10 @@ function randomBytes(length) {
   return bytes;
 }
 
-async function deriveKey(password, salt, iterations) {
+async function deriveKey(passwordBytes, salt, iterations) {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    passwordBytes,
     "PBKDF2",
     false,
     ["deriveKey"]
@@ -145,21 +154,34 @@ function decodeEnvelope(text) {
 async function encryptMnemonic(mnemonic, password) {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
-  const key = await deriveKey(password, salt, ITERATIONS);
-  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, tagLength: 128 },
-    key,
-    new TextEncoder().encode(mnemonic)
-  ));
+  const encoder = new TextEncoder();
+  const passwordBytes = encoder.encode(password);
+  const mnemonicBytes = encoder.encode(mnemonic);
+  let ciphertext;
 
-  return encodeEnvelope({
-    v: 1,
-    alg: ALGORITHM,
-    iter: ITERATIONS,
-    salt: base64urlEncode(salt),
-    iv: base64urlEncode(iv),
-    ct: base64urlEncode(ciphertext)
-  });
+  try {
+    const key = await deriveKey(passwordBytes, salt, ITERATIONS);
+    ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, tagLength: 128 },
+      key,
+      mnemonicBytes
+    ));
+
+    return encodeEnvelope({
+      v: 1,
+      alg: ALGORITHM,
+      iter: ITERATIONS,
+      salt: base64urlEncode(salt),
+      iv: base64urlEncode(iv),
+      ct: base64urlEncode(ciphertext)
+    });
+  } finally {
+    wipeBytes(passwordBytes);
+    wipeBytes(mnemonicBytes);
+    wipeBytes(ciphertext);
+    wipeBytes(salt);
+    wipeBytes(iv);
+  }
 }
 
 async function decryptPayload(payload, password) {
@@ -167,28 +189,48 @@ async function decryptPayload(payload, password) {
   const salt = base64urlDecode(envelope.salt);
   const iv = base64urlDecode(envelope.iv);
   const ciphertext = base64urlDecode(envelope.ct);
+  const passwordBytes = new TextEncoder().encode(password);
+  let plaintextBytes;
 
-  if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17) {
-    throw new Error("Wrong password or corrupted QR.");
-  }
-
-  const key = await deriveKey(password, salt, envelope.iter);
-  let plaintext;
   try {
-    plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, key, ciphertext);
-  } catch {
-    throw new Error("Wrong password or corrupted QR.");
-  }
+    if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17) {
+      throw new Error("Wrong password or corrupted QR.");
+    }
 
-  const mnemonic = new TextDecoder().decode(plaintext);
-  await validateMnemonic(mnemonic);
-  return mnemonic;
+    const key = await deriveKey(passwordBytes, salt, envelope.iter);
+    try {
+      plaintextBytes = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, key, ciphertext));
+    } catch {
+      throw new Error("Wrong password or corrupted QR.");
+    }
+
+    const mnemonic = new TextDecoder().decode(plaintextBytes);
+    await validateMnemonic(mnemonic);
+    return mnemonic;
+  } finally {
+    wipeBytes(passwordBytes);
+    wipeBytes(plaintextBytes);
+    wipeBytes(ciphertext);
+    wipeBytes(salt);
+    wipeBytes(iv);
+  }
 }
 
-function validatePassword(password, confirmation) {
-  if (password.length < 12) throw new Error("Password is too short.");
-  if (BAD_PASSWORDS.has(password.trim().toLowerCase())) throw new Error("Password is too weak.");
-  if (confirmation !== undefined && password !== confirmation) throw new Error("Passwords do not match.");
+function getPasswordWarnings(password) {
+  const warnings = [];
+  if (password.length < 12) warnings.push("short password");
+  if (BAD_PASSWORDS.has(password.trim().toLowerCase())) warnings.push("common password");
+  return warnings;
+}
+
+function passwordWarningText(password) {
+  const warnings = getPasswordWarnings(password);
+  if (!warnings.length) return "";
+  return `Warning: ${warnings.join(" and ")}. Anyone with the QR can try guesses offline.`;
+}
+
+function assertPasswordNotEmpty(password) {
+  if (password.length === 0) throw new Error("Password cannot be empty.");
 }
 
 function setMessage(node, text, type = "") {
@@ -206,15 +248,29 @@ function renderQR(text) {
   elements.printQr.innerHTML = svg;
 }
 
-function clearSecrets() {
-  stopScanner("Camera stopped. Paste works everywhere.");
-  elements.mnemonic.value = "";
-  elements.encryptPassword.value = "";
-  elements.confirmPassword.value = "";
-  elements.recoverPassword.value = "";
-  elements.payloadInput.value = "";
-  elements.payloadOutput.value = "";
-  elements.recoveredMnemonic.value = "";
+function clearField(input) {
+  input.value = "";
+  if (typeof input.setSelectionRange === "function") input.setSelectionRange(0, 0);
+  if (input.type === "text" && (input.id.includes("password") || input.id === "confirm-password")) {
+    input.type = "password";
+  }
+}
+
+function clearScannerCanvas() {
+  const context = elements.scanCanvas.getContext("2d");
+  context.clearRect(0, 0, elements.scanCanvas.width, elements.scanCanvas.height);
+  elements.scanCanvas.width = 0;
+  elements.scanCanvas.height = 0;
+}
+
+function clearSensitiveOutputs() {
+  clearField(elements.mnemonic);
+  clearField(elements.encryptPassword);
+  clearField(elements.confirmPassword);
+  clearField(elements.recoverPassword);
+  clearField(elements.payloadInput);
+  clearField(elements.payloadOutput);
+  clearField(elements.recoveredMnemonic);
   elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
@@ -223,6 +279,15 @@ function clearSecrets() {
   elements.copyMnemonicButton.disabled = true;
   setMessage(elements.encryptMessage, "");
   setMessage(elements.recoverMessage, "");
+  for (const button of document.querySelectorAll("[data-toggle-password]")) {
+    button.textContent = "Show";
+  }
+}
+
+function clearSecrets(message = "Camera stopped. Paste works everywhere.") {
+  stopScanner(message);
+  clearScannerCanvas();
+  clearSensitiveOutputs();
 }
 
 function setBusy(form, busy) {
@@ -253,6 +318,16 @@ function switchTab(name) {
     panel.classList.toggle("active", active);
     panel.hidden = !active;
   }
+}
+
+function togglePasswordVisibility(button) {
+  const input = document.getElementById(button.dataset.togglePassword);
+  if (!input) return;
+
+  const visible = input.type === "text";
+  input.type = visible ? "password" : "text";
+  button.textContent = visible ? "Show" : "Hide";
+  button.setAttribute("aria-label", `${visible ? "Show" : "Hide"} ${input.id.replace(/-/g, " ")}`);
 }
 
 function isCameraSupported() {
@@ -313,6 +388,7 @@ function stopScanner(message, type = "") {
   elements.scannerPreview.hidden = true;
   elements.stopScanButton.hidden = true;
   elements.scanButton.disabled = !isCameraSupported();
+  clearScannerCanvas();
   if (message !== undefined) setMessage(elements.scanMessage, message, type);
 }
 
@@ -360,14 +436,16 @@ async function handleEncrypt(event) {
 
   try {
     const mnemonic = normalizeMnemonic(elements.mnemonic.value);
-    validatePassword(elements.encryptPassword.value, elements.confirmPassword.value);
+    assertPasswordNotEmpty(elements.encryptPassword.value);
+    if (elements.encryptPassword.value !== elements.confirmPassword.value) throw new Error("Passwords do not match.");
     await validateMnemonic(mnemonic);
     const payload = await encryptMnemonic(mnemonic, elements.encryptPassword.value);
     elements.payloadOutput.value = payload;
     renderQR(payload);
     elements.printButton.disabled = false;
     elements.copyPayloadButton.disabled = false;
-    setMessage(elements.encryptMessage, "Encrypted QR payload generated.", "success");
+    const warning = passwordWarningText(elements.encryptPassword.value);
+    setMessage(elements.encryptMessage, warning || "Encrypted QR payload generated.", warning ? "warning" : "success");
   } catch (error) {
     setMessage(elements.encryptMessage, error.message || "Invalid mnemonic.", "error");
   } finally {
@@ -385,7 +463,7 @@ async function handleRecover(event) {
 
   try {
     const password = elements.recoverPassword.value;
-    if (!password) throw new Error("Password is too short.");
+    assertPasswordNotEmpty(password);
     const mnemonic = await decryptPayload(elements.payloadInput.value, password);
     elements.recoveredMnemonic.value = mnemonic;
     elements.copyMnemonicButton.disabled = false;
@@ -422,7 +500,11 @@ function init() {
   elements.copyMnemonicButton.addEventListener("click", () => copyText(elements.recoveredMnemonic.value, elements.recoverMessage));
   elements.scanButton.addEventListener("click", startScanner);
   elements.stopScanButton.addEventListener("click", () => stopScanner("Camera stopped. Paste works everywhere."));
-  window.addEventListener("beforeunload", () => stopScanner());
+  window.addEventListener("beforeunload", () => clearSecrets());
+  window.addEventListener("pagehide", () => clearSecrets());
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) clearSecrets();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) stopScanner("Camera stopped. Paste works everywhere.");
   });
@@ -437,6 +519,9 @@ function init() {
   }
   for (const button of document.querySelectorAll("[data-clear]")) {
     button.addEventListener("click", clearSecrets);
+  }
+  for (const button of document.querySelectorAll("[data-toggle-password]")) {
+    button.addEventListener("click", () => togglePasswordVisibility(button));
   }
 }
 

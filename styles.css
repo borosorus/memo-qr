@@ -199,6 +199,22 @@ label span {
   font-weight: 700;
 }
 
+.password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.password-row input {
+  min-width: 0;
+}
+
+.toggle-password {
+  min-width: 72px;
+  padding-inline: 0.85rem;
+}
+
 textarea,
 input {
   width: 100%;
@@ -248,6 +264,10 @@ input:focus {
 
 .message.success {
   color: var(--success);
+}
+
+.message.warning {
+  color: #9a5a00;
 }
 
 .banner {
@@ -448,6 +468,14 @@ input:focus {
   }
 
   .actions button {
+    width: 100%;
+  }
+
+  .password-row {
+    grid-template-columns: 1fr;
+  }
+
+  .toggle-password {
     width: 100%;
   }
 
