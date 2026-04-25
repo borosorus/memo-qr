@@ -42,6 +42,7 @@ textarea {
 button {
   border: 1px solid var(--line-strong);
   border-radius: 10px;
+  min-height: 44px;
   padding: 0.75rem 1rem;
   color: var(--ink);
   background: var(--surface);
@@ -206,6 +207,7 @@ input {
   padding: 0.92rem;
   color: var(--ink);
   background: #fff;
+  font-size: 1rem;
   outline: none;
 }
 
@@ -258,15 +260,21 @@ input:focus {
   display: none;
 }
 
-.qr-placeholder {
+.qr-frame {
   display: grid;
   min-height: 312px;
   place-items: center;
-  border: 1px dashed var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 20px;
-  color: var(--muted);
   text-align: center;
+  background: #fff;
+}
+
+.qr-placeholder {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  color: var(--muted);
   background:
     linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
@@ -274,7 +282,7 @@ input:focus {
   background-size: 18px 18px;
 }
 
-.qr-placeholder svg {
+.qr-frame svg {
   width: min(100%, 360px);
   height: auto;
 }
@@ -325,6 +333,96 @@ input:focus {
 
   h1 {
     font-size: clamp(2.35rem, 12vw, 3.8rem);
+  }
+}
+
+@media (max-width: 560px) {
+  body {
+    background-size: 22px 22px, 22px 22px, auto, auto;
+  }
+
+  .shell {
+    width: min(100% - 16px, 520px);
+    padding: 16px 0 28px;
+  }
+
+  .hero {
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .eyebrow,
+  .label {
+    font-size: 0.7rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+    letter-spacing: -0.045em;
+  }
+
+  .lede {
+    font-size: 0.98rem;
+  }
+
+  .threat-card,
+  .app-card,
+  .assurance-grid article {
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+  }
+
+  .threat-card,
+  .assurance-grid article {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .app-card {
+    border-radius: 14px;
+  }
+
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 8px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .grid.two,
+  .form,
+  .output-card {
+    gap: 14px;
+  }
+
+  textarea {
+    min-height: 144px;
+    font-size: 0.95rem;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+
+  .qr-frame {
+    min-height: 250px;
+    padding: 14px;
+  }
+
+  .qr-frame svg {
+    width: min(100%, 300px);
+  }
+
+  .secret-card textarea {
+    min-height: 210px;
   }
 }
 

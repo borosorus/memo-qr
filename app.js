@@ -202,7 +202,7 @@ function clearSecrets() {
   elements.payloadInput.value = "";
   elements.payloadOutput.value = "";
   elements.recoveredMnemonic.value = "";
-  elements.qrOutput.className = "qr-placeholder";
+  elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
   elements.printButton.disabled = true;

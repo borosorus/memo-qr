@@ -12,7 +12,7 @@
       <section class="hero" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Local only · No storage · No network</p>
-          <h1 id="page-title">Encrypt a mnemonic into a printable QR.</h1>
+          <h1 id="page-title">Encrypt a mnemonic into an offline QR.</h1>
           <p class="lede">
             Memo QR turns a BIP39 English mnemonic and a QR unlock password into
             an encrypted payload that can be printed, stored, and recovered offline.
@@ -56,13 +56,13 @@
 
             <div class="output-card">
               <p class="label">Encrypted QR code</p>
-              <div id="qr-output" class="qr-placeholder">QR appears here after encryption.</div>
+              <div id="qr-output" class="qr-frame qr-placeholder">QR appears here after encryption.</div>
               <label>
                 <span>Encrypted text payload</span>
                 <textarea id="payload-output" rows="6" readonly spellcheck="false"></textarea>
               </label>
               <div class="actions">
-                <button id="print-button" type="button" disabled>Print</button>
+                <button id="print-button" type="button" disabled>Print QR</button>
                 <button id="copy-payload-button" type="button" disabled>Copy payload</button>
               </div>
             </div>
@@ -91,7 +91,7 @@
               <p class="label">Recovered mnemonic</p>
               <textarea id="recovered-mnemonic" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
               <div class="actions">
-                <button id="copy-mnemonic-button" type="button" disabled>Copy</button>
+                <button id="copy-mnemonic-button" type="button" disabled>Copy mnemonic</button>
                 <button type="button" data-clear>Clear</button>
               </div>
             </div>
@@ -105,7 +105,7 @@
           <p>PBKDF2-SHA-256 derives a non-extractable AES-GCM key in Web Crypto.</p>
         </article>
         <article>
-          <h2>No memory tricks</h2>
+          <h2>No browser storage</h2>
           <p>Nothing is saved to cookies, localStorage, IndexedDB, or a service worker.</p>
         </article>
         <article>
