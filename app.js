@@ -8,6 +8,7 @@ const WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
 
 const $ = (selector) => document.querySelector(selector);
 const wordIndex = new Map((window.BIP39_ENGLISH_WORDS || []).map((word, index) => [word, index]));
+const qrDecoder = window.jsQR;
 
 const elements = {
   supportError: $("#support-error"),
@@ -119,6 +120,7 @@ function encodeEnvelope(envelope) {
 }
 
 function decodeEnvelope(text) {
+  if (typeof text !== "string") throw new Error("Invalid QR payload.");
   const cleaned = text.replace(/\s+/g, "");
   if (!cleaned.startsWith(PREFIX)) throw new Error("Invalid QR payload.");
 
@@ -254,7 +256,7 @@ function switchTab(name) {
 }
 
 function isCameraSupported() {
-  return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof jsQR === "function");
+  return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof qrDecoder === "function");
 }
 
 async function requestCameraStream() {
@@ -333,7 +335,7 @@ function scanFrame() {
   context.drawImage(video, 0, 0, width, height);
 
   const imageData = context.getImageData(0, 0, width, height);
-  const result = jsQR(imageData.data, width, height, { inversionAttempts: "dontInvert" });
+  const result = qrDecoder(imageData.data, width, height, { inversionAttempts: "dontInvert" });
   scannerBusy = false;
 
   if (result && result.data) handleScanResult(result.data);
