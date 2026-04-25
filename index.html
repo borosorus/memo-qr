@@ -30,6 +30,7 @@
         <div class="tabs" role="tablist" aria-label="Tool mode">
           <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="encrypt-panel" id="encrypt-tab" data-tab="encrypt">Encrypt</button>
           <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="recover-panel" id="recover-tab" data-tab="recover">Recover</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="check-panel" id="check-tab" data-tab="check">Check</button>
         </div>
 
         <section id="encrypt-panel" class="panel active" role="tabpanel" aria-labelledby="encrypt-tab">
@@ -67,6 +68,10 @@
                 <span>Encrypted text payload</span>
                 <textarea id="payload-output" rows="6" readonly spellcheck="false"></textarea>
               </label>
+              <label>
+                <span>Encrypted payload fingerprint</span>
+                <input id="fingerprint-output" type="text" readonly>
+              </label>
               <div class="actions">
                 <button id="print-button" type="button" disabled>Print QR</button>
                 <button id="copy-payload-button" type="button" disabled>Copy payload</button>
@@ -84,8 +89,8 @@
               </label>
               <div class="scanner" id="scanner">
                 <div class="actions scanner-actions">
-                  <button id="scan-button" type="button">Scan QR</button>
-                  <button id="stop-scan-button" type="button" hidden>Stop camera</button>
+                  <button id="scan-button" type="button" data-scan-target="payload-input">Scan QR</button>
+                  <button id="stop-scan-button" type="button" data-stop-scan hidden>Stop camera</button>
                 </div>
                 <div id="scanner-preview" class="scanner-preview" hidden>
                   <video id="scan-video" muted playsinline></video>
@@ -118,6 +123,52 @@
             </div>
           </div>
         </section>
+
+        <section id="check-panel" class="panel" role="tabpanel" aria-labelledby="check-tab" hidden>
+          <div class="grid two">
+            <form id="check-form" class="form">
+              <label>
+                <span>Encrypted QR payload</span>
+                <textarea id="check-payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
+              </label>
+              <div class="scanner" id="check-scanner">
+                <div class="actions scanner-actions">
+                  <button type="button" data-scan-target="check-payload-input">Scan QR</button>
+                  <button type="button" data-stop-scan hidden>Stop camera</button>
+                </div>
+                <div class="scanner-preview" hidden>
+                  <video muted playsinline></video>
+                  <div class="scan-frame" aria-hidden="true"></div>
+                </div>
+                <canvas hidden></canvas>
+                <p class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Paste works everywhere.</p>
+              </div>
+              <label>
+                <span>QR unlock password</span>
+                <span class="password-row">
+                  <input id="check-password" type="password" autocomplete="current-password">
+                  <button class="toggle-password" type="button" data-toggle-password="check-password" aria-label="Show QR unlock password">Show</button>
+                </span>
+              </label>
+              <div class="actions">
+                <button class="primary" type="submit">Check QR</button>
+                <button type="button" data-clear>Clear</button>
+              </div>
+              <p id="check-message" class="message" role="status" aria-live="polite"></p>
+            </form>
+
+            <div class="output-card">
+              <p class="label">Check result</p>
+              <div class="check-result">
+                <p id="check-status">No QR checked yet.</p>
+                <label>
+                  <span>Encrypted payload fingerprint</span>
+                  <input id="check-fingerprint-output" type="text" readonly>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
 
       <section class="assurance-grid" aria-label="Privacy guarantees">
@@ -131,7 +182,7 @@
         </article>
         <article>
           <h2>Focused payload</h2>
-          <p>The QR contains ciphertext only: no wallet name, hint, date, or plaintext mnemonic.</p>
+          <p>The QR contains ciphertext plus a check verifier: no wallet name, hint, date, or plaintext mnemonic.</p>
         </article>
       </section>
     </main>
@@ -140,6 +191,7 @@
       <h1>Encrypted Mnemonic QR</h1>
       <div id="print-qr"></div>
       <p><strong>Payload prefix:</strong> MNQR1</p>
+      <p id="print-fingerprint"></p>
       <p>This QR contains an encrypted mnemonic. To recover it, open the offline recovery tool and enter the QR unlock password.</p>
       <p>Anyone with this QR can try password guesses offline, so keep it private.</p>
     </section>

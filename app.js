@@ -3,6 +3,7 @@
 const PREFIX = "MNQR1.";
 const ALGORITHM = "PBKDF2-SHA256-AES256GCM";
 const ITERATIONS = 600000;
+const CHECK_TEXT = "MNQR-CHECK";
 const BAD_PASSWORDS = new Set(["password", "123456", "bitcoin", "wallet", "mnemonic", "seedphrase"]);
 const WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
 
@@ -14,23 +15,25 @@ const elements = {
   supportError: $("#support-error"),
   encryptForm: $("#encrypt-form"),
   recoverForm: $("#recover-form"),
+  checkForm: $("#check-form"),
   mnemonic: $("#mnemonic"),
   encryptPassword: $("#encrypt-password"),
   confirmPassword: $("#confirm-password"),
   recoverPassword: $("#recover-password"),
+  checkPassword: $("#check-password"),
   payloadOutput: $("#payload-output"),
+  fingerprintOutput: $("#fingerprint-output"),
   payloadInput: $("#payload-input"),
+  checkPayloadInput: $("#check-payload-input"),
   recoveredMnemonic: $("#recovered-mnemonic"),
   encryptMessage: $("#encrypt-message"),
   recoverMessage: $("#recover-message"),
-  scanButton: $("#scan-button"),
-  stopScanButton: $("#stop-scan-button"),
-  scannerPreview: $("#scanner-preview"),
-  scanVideo: $("#scan-video"),
-  scanCanvas: $("#scan-canvas"),
-  scanMessage: $("#scan-message"),
+  checkMessage: $("#check-message"),
+  checkStatus: $("#check-status"),
+  checkFingerprintOutput: $("#check-fingerprint-output"),
   qrOutput: $("#qr-output"),
   printQr: $("#print-qr"),
+  printFingerprint: $("#print-fingerprint"),
   printButton: $("#print-button"),
   copyPayloadButton: $("#copy-payload-button"),
   copyMnemonicButton: $("#copy-mnemonic-button")
@@ -39,6 +42,7 @@ const elements = {
 let scannerStream = null;
 let scannerFrameId = null;
 let scannerBusy = false;
+let activeScanner = null;
 
 function wipeBytes(value) {
   if (!value) return;
@@ -55,6 +59,10 @@ function normalizeMnemonic(input) {
 
 function bytesToBits(bytes) {
   return Array.from(bytes, (byte) => byte.toString(2).padStart(8, "0")).join("");
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function sha256(bytes) {
@@ -128,6 +136,10 @@ function encodeEnvelope(envelope) {
   return PREFIX + base64urlEncode(new TextEncoder().encode(JSON.stringify(envelope)));
 }
 
+function envelopeKeys(envelope) {
+  return Object.keys(envelope).sort().join(",");
+}
+
 function decodeEnvelope(text) {
   if (typeof text !== "string") throw new Error("Invalid QR payload.");
   const cleaned = text.replace(/\s+/g, "");
@@ -142,22 +154,53 @@ function decodeEnvelope(text) {
 
   if (!envelope || Array.isArray(envelope) || typeof envelope !== "object") throw new Error("Invalid QR payload.");
 
-  const keys = Object.keys(envelope).sort().join(",");
-  if (keys !== "alg,ct,iter,iv,salt,v") throw new Error("Invalid QR payload.");
-  if (envelope.v !== 1) throw new Error("Unsupported payload version.");
+  if (envelopeKeys(envelope) !== "alg,chk,chkIv,ct,fp,iter,iv,salt") throw new Error("Invalid QR payload.");
   if (envelope.alg !== ALGORITHM) throw new Error("Invalid QR payload.");
   if (!Number.isInteger(envelope.iter) || envelope.iter < ITERATIONS) throw new Error("Invalid QR payload.");
 
   return envelope;
 }
 
+function fingerprintInput(envelope) {
+  return JSON.stringify({
+    alg: envelope.alg,
+    iter: envelope.iter,
+    salt: envelope.salt,
+    iv: envelope.iv,
+    ct: envelope.ct,
+    chkIv: envelope.chkIv,
+    chk: envelope.chk
+  });
+}
+
+async function computeFingerprint(envelope) {
+  let hash;
+  let fingerprintBytes;
+  try {
+    hash = await sha256(new TextEncoder().encode(fingerprintInput(envelope)));
+    fingerprintBytes = hash.slice(0, 8);
+    return bytesToHex(fingerprintBytes).match(/.{1,4}/g).join("-");
+  } finally {
+    wipeBytes(hash);
+    wipeBytes(fingerprintBytes);
+  }
+}
+
+async function assertFingerprint(envelope) {
+  if (typeof envelope.fp !== "string") throw new Error("Invalid QR payload.");
+  if (await computeFingerprint(envelope) !== envelope.fp) throw new Error("Wrong password or corrupted QR.");
+}
+
 async function encryptMnemonic(mnemonic, password) {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
+  const chkIv = randomBytes(12);
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
   const mnemonicBytes = encoder.encode(mnemonic);
+  const checkBytes = encoder.encode(CHECK_TEXT);
   let ciphertext;
+  let checkCiphertext;
 
   try {
     const key = await deriveKey(passwordBytes, salt, ITERATIONS);
@@ -166,21 +209,36 @@ async function encryptMnemonic(mnemonic, password) {
       key,
       mnemonicBytes
     ));
+    checkCiphertext = new Uint8Array(await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: chkIv, tagLength: 128 },
+      key,
+      checkBytes
+    ));
 
-    return encodeEnvelope({
-      v: 1,
+    const envelope = {
       alg: ALGORITHM,
       iter: ITERATIONS,
       salt: base64urlEncode(salt),
       iv: base64urlEncode(iv),
-      ct: base64urlEncode(ciphertext)
-    });
+      ct: base64urlEncode(ciphertext),
+      chkIv: base64urlEncode(chkIv),
+      chk: base64urlEncode(checkCiphertext)
+    };
+    envelope.fp = await computeFingerprint(envelope);
+
+    return {
+      payload: encodeEnvelope(envelope),
+      fingerprint: envelope.fp
+    };
   } finally {
     wipeBytes(passwordBytes);
     wipeBytes(mnemonicBytes);
+    wipeBytes(checkBytes);
     wipeBytes(ciphertext);
+    wipeBytes(checkCiphertext);
     wipeBytes(salt);
     wipeBytes(iv);
+    wipeBytes(chkIv);
   }
 }
 
@@ -193,6 +251,7 @@ async function decryptPayload(payload, password) {
   let plaintextBytes;
 
   try {
+    await assertFingerprint(envelope);
     if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17) {
       throw new Error("Wrong password or corrupted QR.");
     }
@@ -213,6 +272,43 @@ async function decryptPayload(payload, password) {
     wipeBytes(ciphertext);
     wipeBytes(salt);
     wipeBytes(iv);
+  }
+}
+
+async function checkPayload(payload, password) {
+  const envelope = decodeEnvelope(payload);
+
+  const salt = base64urlDecode(envelope.salt);
+  const chkIv = base64urlDecode(envelope.chkIv);
+  const checkCiphertext = base64urlDecode(envelope.chk);
+  const passwordBytes = new TextEncoder().encode(password);
+  let checkPlaintext;
+
+  try {
+    await assertFingerprint(envelope);
+    if (salt.length !== 16 || chkIv.length !== 12 || checkCiphertext.length < 17) {
+      throw new Error("Wrong password or corrupted QR.");
+    }
+
+    const key = await deriveKey(passwordBytes, salt, envelope.iter);
+    try {
+      checkPlaintext = new Uint8Array(await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: chkIv, tagLength: 128 },
+        key,
+        checkCiphertext
+      ));
+    } catch {
+      throw new Error("Wrong password or corrupted QR.");
+    }
+
+    if (new TextDecoder().decode(checkPlaintext) !== CHECK_TEXT) throw new Error("Wrong password or corrupted QR.");
+    return envelope.fp;
+  } finally {
+    wipeBytes(passwordBytes);
+    wipeBytes(checkPlaintext);
+    wipeBytes(checkCiphertext);
+    wipeBytes(salt);
+    wipeBytes(chkIv);
   }
 }
 
@@ -257,10 +353,12 @@ function clearField(input) {
 }
 
 function clearScannerCanvas() {
-  const context = elements.scanCanvas.getContext("2d");
-  context.clearRect(0, 0, elements.scanCanvas.width, elements.scanCanvas.height);
-  elements.scanCanvas.width = 0;
-  elements.scanCanvas.height = 0;
+  for (const canvas of document.querySelectorAll(".scanner canvas")) {
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }
 
 function clearSensitiveOutputs() {
@@ -268,17 +366,24 @@ function clearSensitiveOutputs() {
   clearField(elements.encryptPassword);
   clearField(elements.confirmPassword);
   clearField(elements.recoverPassword);
+  clearField(elements.checkPassword);
   clearField(elements.payloadInput);
+  clearField(elements.checkPayloadInput);
   clearField(elements.payloadOutput);
+  clearField(elements.fingerprintOutput);
   clearField(elements.recoveredMnemonic);
+  clearField(elements.checkFingerprintOutput);
+  elements.checkStatus.textContent = "No QR checked yet.";
   elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
+  elements.printFingerprint.textContent = "";
   elements.printButton.disabled = true;
   elements.copyPayloadButton.disabled = true;
   elements.copyMnemonicButton.disabled = true;
   setMessage(elements.encryptMessage, "");
   setMessage(elements.recoverMessage, "");
+  setMessage(elements.checkMessage, "");
   for (const button of document.querySelectorAll("[data-toggle-password]")) {
     button.textContent = "Show";
   }
@@ -334,6 +439,20 @@ function isCameraSupported() {
   return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof qrDecoder === "function");
 }
 
+function getScanner(button) {
+  const root = button.closest(".scanner");
+  return {
+    root,
+    target: document.getElementById(button.dataset.scanTarget),
+    startButton: button,
+    stopButton: root.querySelector("[data-stop-scan]"),
+    preview: root.querySelector(".scanner-preview"),
+    video: root.querySelector("video"),
+    canvas: root.querySelector("canvas"),
+    message: root.querySelector("[data-scan-message]")
+  };
+}
+
 async function requestCameraStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
@@ -346,27 +465,30 @@ async function requestCameraStream() {
   }
 }
 
-async function startScanner() {
+async function startScanner(button) {
+  activeScanner = getScanner(button);
   if (!isCameraSupported()) {
-    setMessage(elements.scanMessage, "Camera scanning is unavailable. Paste the encrypted payload instead.", "error");
+    setMessage(activeScanner.message, "Camera scanning is unavailable. Paste the encrypted payload instead.", "error");
+    activeScanner = null;
     return;
   }
 
   stopScanner();
-  setMessage(elements.scanMessage, "Starting camera...");
-  elements.scanButton.disabled = true;
+  activeScanner = getScanner(button);
+  setMessage(activeScanner.message, "Starting camera...");
+  activeScanner.startButton.disabled = true;
 
   try {
     scannerStream = await requestCameraStream();
-    elements.scanVideo.srcObject = scannerStream;
-    elements.scannerPreview.hidden = false;
-    elements.stopScanButton.hidden = false;
-    await elements.scanVideo.play();
-    elements.scanButton.disabled = false;
-    setMessage(elements.scanMessage, "Point the camera at a Memo QR code.");
+    activeScanner.video.srcObject = scannerStream;
+    activeScanner.preview.hidden = false;
+    activeScanner.stopButton.hidden = false;
+    await activeScanner.video.play();
+    activeScanner.startButton.disabled = false;
+    setMessage(activeScanner.message, "Point the camera at a Memo QR code.");
     scanFrame();
   } catch {
-    elements.scanButton.disabled = false;
+    activeScanner.startButton.disabled = false;
     stopScanner("Camera unavailable. Paste the encrypted payload instead.", "error");
   }
 }
@@ -383,27 +505,30 @@ function stopScanner(message, type = "") {
   }
 
   scannerBusy = false;
-  elements.scanVideo.pause();
-  elements.scanVideo.srcObject = null;
-  elements.scannerPreview.hidden = true;
-  elements.stopScanButton.hidden = true;
-  elements.scanButton.disabled = !isCameraSupported();
+  if (activeScanner) {
+    activeScanner.video.pause();
+    activeScanner.video.srcObject = null;
+    activeScanner.preview.hidden = true;
+    activeScanner.stopButton.hidden = true;
+    activeScanner.startButton.disabled = !isCameraSupported();
+  }
   clearScannerCanvas();
-  if (message !== undefined) setMessage(elements.scanMessage, message, type);
+  if (message !== undefined && activeScanner) setMessage(activeScanner.message, message, type);
+  activeScanner = null;
 }
 
 function scanFrame() {
-  if (!scannerStream) return;
+  if (!scannerStream || !activeScanner) return;
   scannerFrameId = requestAnimationFrame(scanFrame);
 
-  const video = elements.scanVideo;
+  const video = activeScanner.video;
   if (scannerBusy || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
 
   scannerBusy = true;
   const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
   const width = Math.max(1, Math.floor(video.videoWidth * scale));
   const height = Math.max(1, Math.floor(video.videoHeight * scale));
-  const canvas = elements.scanCanvas;
+  const canvas = activeScanner.canvas;
   const context = canvas.getContext("2d", { willReadFrequently: true });
 
   canvas.width = width;
@@ -420,12 +545,13 @@ function scanFrame() {
 function handleScanResult(rawValue) {
   const payload = rawValue.trim();
   if (!payload.startsWith(PREFIX)) {
-    setMessage(elements.scanMessage, "Not a Memo QR payload.");
+    if (activeScanner) setMessage(activeScanner.message, "Not a Memo QR payload.");
     return;
   }
 
-  elements.payloadInput.value = payload;
+  if (activeScanner) activeScanner.target.value = payload;
   setMessage(elements.recoverMessage, "");
+  setMessage(elements.checkMessage, "");
   stopScanner("QR payload scanned.", "success");
 }
 
@@ -439,8 +565,10 @@ async function handleEncrypt(event) {
     assertPasswordNotEmpty(elements.encryptPassword.value);
     if (elements.encryptPassword.value !== elements.confirmPassword.value) throw new Error("Passwords do not match.");
     await validateMnemonic(mnemonic);
-    const payload = await encryptMnemonic(mnemonic, elements.encryptPassword.value);
+    const { payload, fingerprint } = await encryptMnemonic(mnemonic, elements.encryptPassword.value);
     elements.payloadOutput.value = payload;
+    elements.fingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
+    elements.printFingerprint.textContent = `Fingerprint: MNQR-FP: ${fingerprint}`;
     renderQR(payload);
     elements.printButton.disabled = false;
     elements.copyPayloadButton.disabled = false;
@@ -469,12 +597,38 @@ async function handleRecover(event) {
     elements.copyMnemonicButton.disabled = false;
     setMessage(elements.recoverMessage, "Mnemonic recovered.", "success");
   } catch (error) {
-    const safeMessage = error.message === "Unsupported payload version." || error.message === "Invalid QR payload."
+    const safeMessage = error.message === "Invalid QR payload."
       ? error.message
       : "Wrong password or corrupted QR.";
     setMessage(elements.recoverMessage, safeMessage, "error");
   } finally {
     setBusy(elements.recoverForm, false);
+  }
+}
+
+async function handleCheck(event) {
+  event.preventDefault();
+  stopScanner("Camera stopped. Paste works everywhere.");
+  setBusy(elements.checkForm, true);
+  elements.checkFingerprintOutput.value = "";
+  elements.checkStatus.textContent = "Checking QR...";
+  setMessage(elements.checkMessage, "Checking locally...");
+
+  try {
+    const password = elements.checkPassword.value;
+    assertPasswordNotEmpty(password);
+    const fingerprint = await checkPayload(elements.checkPayloadInput.value, password);
+    elements.checkFingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
+    elements.checkStatus.textContent = "QR and password verified. The mnemonic was not displayed.";
+    setMessage(elements.checkMessage, "QR and password verified.", "success");
+  } catch (error) {
+    const safeMessage = error.message === "Invalid QR payload."
+      ? error.message
+      : "Wrong password or corrupted QR.";
+    elements.checkStatus.textContent = "No QR verified.";
+    setMessage(elements.checkMessage, safeMessage, "error");
+  } finally {
+    setBusy(elements.checkForm, false);
   }
 }
 
@@ -495,11 +649,16 @@ function init() {
 
   elements.encryptForm.addEventListener("submit", handleEncrypt);
   elements.recoverForm.addEventListener("submit", handleRecover);
+  elements.checkForm.addEventListener("submit", handleCheck);
   elements.printButton.addEventListener("click", () => window.print());
   elements.copyPayloadButton.addEventListener("click", () => copyText(elements.payloadOutput.value, elements.encryptMessage));
   elements.copyMnemonicButton.addEventListener("click", () => copyText(elements.recoveredMnemonic.value, elements.recoverMessage));
-  elements.scanButton.addEventListener("click", startScanner);
-  elements.stopScanButton.addEventListener("click", () => stopScanner("Camera stopped. Paste works everywhere."));
+  for (const button of document.querySelectorAll("[data-scan-target]")) {
+    button.addEventListener("click", () => startScanner(button));
+  }
+  for (const button of document.querySelectorAll("[data-stop-scan]")) {
+    button.addEventListener("click", () => stopScanner("Camera stopped. Paste works everywhere."));
+  }
   window.addEventListener("beforeunload", () => clearSecrets());
   window.addEventListener("pagehide", () => clearSecrets());
   window.addEventListener("pageshow", (event) => {
@@ -510,8 +669,10 @@ function init() {
   });
 
   if (!isCameraSupported()) {
-    elements.scanButton.disabled = true;
-    setMessage(elements.scanMessage, "Camera scanning is unavailable. Paste the encrypted payload instead.");
+    for (const button of document.querySelectorAll("[data-scan-target]")) {
+      button.disabled = true;
+      setMessage(button.closest(".scanner").querySelector("[data-scan-message]"), "Camera scanning is unavailable. Paste the encrypted payload instead.");
+    }
   }
 
   for (const tab of document.querySelectorAll(".tab")) {

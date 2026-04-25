@@ -311,6 +311,21 @@ input:focus {
   min-height: 260px;
 }
 
+.check-result {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.check-result p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .scanner {
   display: grid;
   gap: 10px;

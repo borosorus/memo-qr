@@ -15,7 +15,11 @@ Use the Encrypt tab to enter a BIP39 English mnemonic and QR unlock password. Pr
 
 Use the Recover tab to paste the encrypted payload and enter the QR unlock password. The mnemonic is only shown after successful decryption.
 
-The Recover tab also includes optional camera scanning. Browsers usually allow camera access only on HTTPS origins or `localhost`; if camera access is unavailable, paste the encrypted payload instead.
+Use the Check tab to verify a QR and password without displaying the mnemonic.
+
+The fingerprint identifies one encrypted payload. Re-encrypting the same mnemonic creates a new salt and IV, so it also creates a new fingerprint.
+
+Recover and Check also include optional camera scanning. Browsers usually allow camera access only on HTTPS origins or `localhost`; if camera access is unavailable, paste the encrypted payload instead.
 
 ## Security Model
 
@@ -37,6 +41,7 @@ This is not guaranteed secure memory erasure. Browser strings, DOM input interna
 - KDF: PBKDF2-HMAC-SHA-256, 600,000 iterations.
 - Encryption: AES-256-GCM with a random 16-byte salt and random 12-byte IV.
 - Payload: `MNQR1.<base64url-json>`.
+- Payload includes encrypted mnemonic ciphertext, encrypted password-check verifier, and encrypted-payload fingerprint.
 - QR: local vendored `qrcode-generator` runtime.
 - QR scanning: local vendored `jsQR` runtime.
 - Storage: none.
@@ -49,6 +54,7 @@ Included:
 
 - Encrypt an existing BIP39 English mnemonic.
 - Decrypt an encrypted Memo QR payload.
+- Check a QR and password without displaying the mnemonic.
 - Render a printable encrypted QR.
 - Scan an encrypted QR with a desktop webcam or mobile camera when the browser allows camera access.
 - Provide encrypted text payload backup.
