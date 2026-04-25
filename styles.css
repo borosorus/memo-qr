@@ -1,0 +1,366 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --ink: #111827;
+  --muted: #5b6472;
+  --line: #d9e0e8;
+  --line-strong: #b7c1cd;
+  --accent: #0f6bff;
+  --accent-dark: #0749b8;
+  --danger: #b42318;
+  --success: #087443;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sans: ui-sans-serif, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 80% 0%, rgba(15, 107, 255, 0.13), transparent 30rem),
+    var(--bg);
+  background-size: 28px 28px, 28px 28px, auto, auto;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 107, 255, 0.1);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.primary {
+  color: #fff;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.primary:hover:not(:disabled) {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+}
+
+.shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 36px 0 52px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+
+.eyebrow,
+.label {
+  margin: 0 0 0.7rem;
+  color: var(--accent-dark);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.lede {
+  max-width: 680px;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.58;
+}
+
+.threat-card,
+.app-card,
+.assurance-grid article {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.threat-card {
+  border-left: 4px solid var(--accent);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.threat-card strong {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.threat-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.52;
+}
+
+.app-card {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.tab {
+  flex: 1;
+  border-radius: 10px;
+  background: transparent;
+}
+
+.tab.active {
+  color: #fff;
+  border-color: #172033;
+  background: #172033;
+}
+
+.panel {
+  display: none;
+  padding: clamp(18px, 3vw, 28px);
+}
+
+.panel.active {
+  display: block;
+}
+
+.grid.two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.86fr);
+  gap: 22px;
+}
+
+.form,
+.output-card {
+  display: grid;
+  gap: 16px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+}
+
+label span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+textarea,
+input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 0.92rem;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 112px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+textarea:focus,
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 107, 255, 0.12);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.message,
+.banner {
+  margin: 0;
+  min-height: 1.3rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.message.error,
+.banner.error {
+  color: var(--danger);
+}
+
+.message.success {
+  color: var(--success);
+}
+
+.banner {
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid rgba(180, 35, 24, 0.18);
+  background: rgba(180, 35, 24, 0.07);
+}
+
+.hidden {
+  display: none;
+}
+
+.qr-placeholder {
+  display: grid;
+  min-height: 312px;
+  place-items: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    #fff;
+  background-size: 18px 18px;
+}
+
+.qr-placeholder svg {
+  width: min(100%, 360px);
+  height: auto;
+}
+
+.secret-card textarea {
+  min-height: 260px;
+}
+
+.assurance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.assurance-grid article {
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.assurance-grid h2 {
+  margin: 0 0 0.55rem;
+  font-size: 1rem;
+  letter-spacing: -0.015em;
+}
+
+.assurance-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.print-card {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .hero,
+  .grid.two,
+  .assurance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shell {
+    width: min(100% - 22px, 720px);
+    padding-top: 24px;
+  }
+
+  h1 {
+    font-size: clamp(2.35rem, 12vw, 3.8rem);
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .shell {
+    display: none;
+  }
+
+  .print-card {
+    display: block;
+    max-width: 680px;
+    margin: 0 auto;
+    color: black;
+    font-family: Georgia, serif;
+    text-align: center;
+  }
+
+  .print-card h1 {
+    margin-bottom: 28px;
+    font-size: 32px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  #print-qr svg {
+    width: 420px;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .print-card p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+}

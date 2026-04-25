@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Memo QR</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Local only · No storage · No network</p>
+          <h1 id="page-title">Encrypt a mnemonic into a printable QR.</h1>
+          <p class="lede">
+            Memo QR turns a BIP39 English mnemonic and a QR unlock password into
+            an encrypted payload that can be printed, stored, and recovered offline.
+          </p>
+        </div>
+        <aside class="threat-card" aria-label="Security warning">
+          <strong>Important</strong>
+          <p>Anyone with the QR can try unlimited password guesses offline. Use at least 6 random words or 16+ random characters.</p>
+        </aside>
+      </section>
+
+      <section class="app-card" aria-label="Mnemonic QR tool">
+        <div id="support-error" class="banner error hidden" role="alert"></div>
+
+        <div class="tabs" role="tablist" aria-label="Tool mode">
+          <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="encrypt-panel" id="encrypt-tab" data-tab="encrypt">Encrypt</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" aria-controls="recover-panel" id="recover-tab" data-tab="recover">Recover</button>
+        </div>
+
+        <section id="encrypt-panel" class="panel active" role="tabpanel" aria-labelledby="encrypt-tab">
+          <div class="grid two">
+            <form id="encrypt-form" class="form">
+              <label>
+                <span>Mnemonic</span>
+                <textarea id="mnemonic" rows="7" autocomplete="off" spellcheck="false" placeholder="abandon ability ..."></textarea>
+              </label>
+              <label>
+                <span>QR unlock password</span>
+                <input id="encrypt-password" type="password" autocomplete="new-password">
+              </label>
+              <label>
+                <span>Confirm QR unlock password</span>
+                <input id="confirm-password" type="password" autocomplete="new-password">
+              </label>
+              <div class="actions">
+                <button class="primary" type="submit">Encrypt & Generate QR</button>
+                <button type="button" data-clear>Clear</button>
+              </div>
+              <p id="encrypt-message" class="message" role="status" aria-live="polite"></p>
+            </form>
+
+            <div class="output-card">
+              <p class="label">Encrypted QR code</p>
+              <div id="qr-output" class="qr-placeholder">QR appears here after encryption.</div>
+              <label>
+                <span>Encrypted text payload</span>
+                <textarea id="payload-output" rows="6" readonly spellcheck="false"></textarea>
+              </label>
+              <div class="actions">
+                <button id="print-button" type="button" disabled>Print</button>
+                <button id="copy-payload-button" type="button" disabled>Copy payload</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="recover-panel" class="panel" role="tabpanel" aria-labelledby="recover-tab" hidden>
+          <div class="grid two">
+            <form id="recover-form" class="form">
+              <label>
+                <span>Encrypted QR payload</span>
+                <textarea id="payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
+              </label>
+              <label>
+                <span>QR unlock password</span>
+                <input id="recover-password" type="password" autocomplete="current-password">
+              </label>
+              <div class="actions">
+                <button class="primary" type="submit">Decrypt</button>
+                <button type="button" data-clear>Clear</button>
+              </div>
+              <p id="recover-message" class="message" role="status" aria-live="polite"></p>
+            </form>
+
+            <div class="output-card secret-card">
+              <p class="label">Recovered mnemonic</p>
+              <textarea id="recovered-mnemonic" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
+              <div class="actions">
+                <button id="copy-mnemonic-button" type="button" disabled>Copy</button>
+                <button type="button" data-clear>Clear</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="assurance-grid" aria-label="Privacy guarantees">
+        <article>
+          <h2>Browser crypto</h2>
+          <p>PBKDF2-SHA-256 derives a non-extractable AES-GCM key in Web Crypto.</p>
+        </article>
+        <article>
+          <h2>No memory tricks</h2>
+          <p>Nothing is saved to cookies, localStorage, IndexedDB, or a service worker.</p>
+        </article>
+        <article>
+          <h2>Focused payload</h2>
+          <p>The QR contains ciphertext only: no wallet name, hint, date, or plaintext mnemonic.</p>
+        </article>
+      </section>
+    </main>
+
+    <section id="print-card" class="print-card" aria-hidden="true">
+      <h1>Encrypted Mnemonic QR</h1>
+      <div id="print-qr"></div>
+      <p><strong>Payload prefix:</strong> MNQR1</p>
+      <p>This QR contains an encrypted mnemonic. To recover it, open the offline recovery tool and enter the QR unlock password.</p>
+      <p>Anyone with this QR can try password guesses offline, so keep it private.</p>
+    </section>
+
+    <script src="qr.min.js"></script>
+    <script src="bip39-english.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
