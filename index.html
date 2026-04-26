@@ -87,7 +87,7 @@
                 <span>Encrypted QR payload</span>
                 <textarea id="payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
               </label>
-              <div class="scanner" id="scanner" data-scan-target="payload-input">
+              <div class="scanner" id="scanner" data-payload-target="payload-input">
                 <div class="actions scanner-actions">
                   <button id="scan-button" type="button" data-scan-target="payload-input">Scan QR</button>
                   <label class="file-picker">
@@ -101,7 +101,7 @@
                   <div class="scan-frame" aria-hidden="true"></div>
                 </div>
                 <canvas id="scan-canvas" hidden></canvas>
-                <p id="scan-message" class="message">Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
+                <p id="scan-message" class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
               </div>
               <label>
                 <span>QR unlock password</span>
@@ -135,7 +135,7 @@
                 <span>Encrypted QR payload</span>
                 <textarea id="check-payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
               </label>
-              <div class="scanner" id="check-scanner" data-scan-target="check-payload-input">
+              <div class="scanner" id="check-scanner" data-payload-target="check-payload-input">
                 <div class="actions scanner-actions">
                   <button type="button" data-scan-target="check-payload-input">Scan QR</button>
                   <label class="file-picker">
@@ -167,8 +167,9 @@
 
             <div class="output-card">
               <p class="label">Check result</p>
-              <div class="check-result">
-                <p id="check-status">No QR checked yet.</p>
+              <div id="check-result" class="check-result">
+                <p id="check-status" class="check-status">No QR checked yet.</p>
+                <p id="check-detail" class="check-detail">If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.</p>
                 <label>
                   <span>Encrypted payload fingerprint</span>
                   <input id="check-fingerprint-output" type="text" readonly>

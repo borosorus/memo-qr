@@ -29,7 +29,9 @@ const elements = {
   encryptMessage: $("#encrypt-message"),
   recoverMessage: $("#recover-message"),
   checkMessage: $("#check-message"),
+  checkResult: $("#check-result"),
   checkStatus: $("#check-status"),
+  checkDetail: $("#check-detail"),
   checkFingerprintOutput: $("#check-fingerprint-output"),
   qrOutput: $("#qr-output"),
   printQr: $("#print-qr"),
@@ -330,8 +332,20 @@ function assertPasswordNotEmpty(password) {
 }
 
 function setMessage(node, text, type = "") {
+  if (!node) return;
   node.textContent = text;
   node.className = `message ${type}`.trim();
+}
+
+function setCheckState(state, detail = "") {
+  elements.checkResult.className = `check-result ${state}`.trim();
+  elements.checkStatus.textContent = {
+    idle: "No QR checked yet.",
+    progress: "Checking QR...",
+    success: "Fingerprint verified.",
+    error: "Fingerprint not verified."
+  }[state] || "No QR checked yet.";
+  elements.checkDetail.textContent = detail;
 }
 
 function renderQR(text) {
@@ -373,7 +387,7 @@ function clearSensitiveOutputs() {
   clearField(elements.fingerprintOutput);
   clearField(elements.recoveredMnemonic);
   clearField(elements.checkFingerprintOutput);
-  elements.checkStatus.textContent = "No QR checked yet.";
+  setCheckState("idle", "If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.");
   elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
@@ -444,7 +458,7 @@ function getScanner(node) {
   const root = node.closest(".scanner");
   return {
     root,
-    target: document.getElementById(node.dataset.scanTarget || root.dataset.scanTarget),
+    target: document.getElementById(node.dataset.scanTarget || root.dataset.payloadTarget),
     startButton: root.querySelector("[data-scan-target]"),
     stopButton: root.querySelector("[data-stop-scan]"),
     preview: root.querySelector(".scanner-preview"),
@@ -497,9 +511,15 @@ async function decodeQrFromFile(file, canvas) {
   const objectUrl = URL.createObjectURL(file);
   let source;
   try {
-    source = typeof createImageBitmap === "function"
-      ? await createImageBitmap(file)
-      : await loadImageElement(objectUrl);
+    if (typeof createImageBitmap === "function") {
+      try {
+        source = await createImageBitmap(file);
+      } catch {
+        source = await loadImageElement(objectUrl);
+      }
+    } else {
+      source = await loadImageElement(objectUrl);
+    }
     return decodeQrFromSource(source, canvas);
   } finally {
     if (source && typeof source.close === "function") source.close();
@@ -684,7 +704,7 @@ async function handleCheck(event) {
   stopScanner("Camera stopped. Image import and paste work everywhere.");
   setBusy(elements.checkForm, true);
   elements.checkFingerprintOutput.value = "";
-  elements.checkStatus.textContent = "Checking QR...";
+  setCheckState("progress", "Verifying the encrypted check value locally. The mnemonic stays hidden.");
   setMessage(elements.checkMessage, "Checking locally...");
 
   try {
@@ -692,13 +712,13 @@ async function handleCheck(event) {
     assertPasswordNotEmpty(password);
     const fingerprint = await checkPayload(elements.checkPayloadInput.value, password);
     elements.checkFingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
-    elements.checkStatus.textContent = "QR and password verified. The mnemonic was not displayed.";
+    setCheckState("success", "The QR payload and password match. This fingerprint identifies that encrypted payload only; it does not reveal the mnemonic.");
     setMessage(elements.checkMessage, "QR and password verified.", "success");
   } catch (error) {
     const safeMessage = error.message === "Invalid QR payload."
       ? error.message
       : "Wrong password or corrupted QR.";
-    elements.checkStatus.textContent = "No QR verified.";
+    setCheckState("error", "The QR could not be validated. This usually means the password is wrong, the image does not contain this QR payload, or the payload is corrupted.");
     setMessage(elements.checkMessage, safeMessage, "error");
   } finally {
     setBusy(elements.checkForm, false);
