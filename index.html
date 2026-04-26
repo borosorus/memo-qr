@@ -12,10 +12,10 @@
       <section class="hero" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Local only · No storage · No network</p>
-          <h1 id="page-title">Encrypt a mnemonic into an offline QR.</h1>
+          <h1 id="page-title">Encrypt text into an offline QR.</h1>
           <p class="lede">
-            Memo QR turns a BIP39 English mnemonic and a QR unlock password into
-            an encrypted payload that can be printed, stored, and recovered offline.
+            Memo QR turns text and a QR unlock password into an encrypted payload
+            that can be printed, stored, and recovered offline.
           </p>
         </div>
         <aside class="threat-card" aria-label="Security warning">
@@ -24,7 +24,7 @@
         </aside>
       </section>
 
-      <section class="app-card" aria-label="Mnemonic QR tool">
+      <section class="app-card" aria-label="Encrypted text QR tool">
         <div id="support-error" class="banner error hidden" role="alert"></div>
 
         <div class="tabs" role="tablist" aria-label="Tool mode">
@@ -39,8 +39,8 @@
               <section class="step-block">
                 <p class="step-kicker">Step 1</p>
                 <label>
-                  <span>Enter mnemonic</span>
-                  <textarea id="mnemonic" rows="7" autocomplete="off" spellcheck="false" placeholder="abandon ability ..."></textarea>
+                  <span>Enter text (max 2048 UTF-8 bytes)</span>
+                  <textarea id="plain-text" rows="7" autocomplete="off" spellcheck="false" placeholder="Enter text to encrypt..."></textarea>
                 </label>
               </section>
               <section class="step-block">
@@ -67,7 +67,7 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">Generate the encrypted payload locally, then use the right side to print, copy, or save the fingerprint.</p>
+              <p class="step-note">Generate the encrypted payload locally, then use the right side to print, export, copy, or save the fingerprint. Empty or whitespace-only text is rejected.</p>
               <p id="encrypt-message" class="message" role="status" aria-live="polite"></p>
             </form>
   
@@ -89,7 +89,7 @@
               </div>
               <div id="encrypt-result" class="result-status idle">
                 <p id="encrypt-result-title" class="result-status-title">No QR generated yet.</p>
-                <p id="encrypt-result-detail" class="result-status-detail">Encrypt a mnemonic to generate the QR payload and fingerprint.</p>
+                <p id="encrypt-result-detail" class="result-status-detail">Encrypt text to generate the QR payload and fingerprint.</p>
               </div>
             </div>
           </div>
@@ -138,20 +138,20 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">If the payload and password match, the mnemonic will appear on the right side only after local decryption succeeds.</p>
+              <p class="step-note">If the payload and password match, the text will appear on the right side only after local decryption succeeds.</p>
               <p id="recover-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
             <div class="output-card secret-card result-pane">
-              <p class="label">Recovered mnemonic</p>
-              <textarea id="recovered-mnemonic" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
+              <p class="label">Recovered text</p>
+              <textarea id="recovered-text" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
               <div class="actions">
-                <button id="copy-mnemonic-button" type="button" disabled>Copy mnemonic</button>
+                <button id="copy-text-button" type="button" disabled>Copy text</button>
                 <button type="button" data-clear>Clear</button>
               </div>
               <div id="recover-result" class="result-status idle">
-                <p id="recover-result-title" class="result-status-title">No mnemonic recovered yet.</p>
-                <p id="recover-result-detail" class="result-status-detail">Load a QR payload and enter its password to reveal the mnemonic locally.</p>
+                <p id="recover-result-title" class="result-status-title">No text recovered yet.</p>
+                <p id="recover-result-detail" class="result-status-detail">Load a QR payload and enter its password to reveal the text locally.</p>
               </div>
             </div>
           </div>
@@ -200,7 +200,7 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">Check mode confirms the payload and password pair and recovers only the fingerprint, not the mnemonic.</p>
+              <p class="step-note">Check mode confirms the payload and password pair and recovers only the fingerprint, not the text.</p>
               <p id="check-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
@@ -208,7 +208,7 @@
               <p class="label">Check result</p>
               <div id="check-result" class="check-result">
                 <p id="check-status" class="check-status">No QR checked yet.</p>
-                <p id="check-detail" class="check-detail">If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.</p>
+                <p id="check-detail" class="check-detail">If the QR and password match, this shows the payload fingerprint without revealing the text.</p>
                 <label>
                   <span>Encrypted payload fingerprint</span>
                   <input id="check-fingerprint-output" type="text" readonly>
@@ -216,7 +216,7 @@
               </div>
               <div id="check-result-message" class="result-status idle">
                 <p id="check-result-title" class="result-status-title">No verification result yet.</p>
-                <p id="check-result-detail" class="result-status-detail">Check mode verifies the payload and password without decrypting the mnemonic into view.</p>
+                <p id="check-result-detail" class="result-status-detail">Check mode verifies the payload and password without decrypting the text into view.</p>
               </div>
             </div>
           </div>
@@ -234,7 +234,7 @@
         </article>
         <article>
           <h2>Focused payload</h2>
-          <p>The QR contains ciphertext plus a check verifier: no wallet name, hint, date, or plaintext mnemonic.</p>
+          <p>The QR contains ciphertext plus a check verifier: no title, hint, date, or plaintext content.</p>
         </article>
       </section>
     </main>
@@ -248,7 +248,6 @@
 
     <script src="qr.min.js"></script>
     <script src="jsqr.min.js"></script>
-    <script src="bip39-english.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

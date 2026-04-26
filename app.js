@@ -4,11 +4,10 @@ const PREFIX = "MNQR1.";
 const ALGORITHM = "PBKDF2-SHA256-AES256GCM";
 const ITERATIONS = 600000;
 const CHECK_TEXT = "MNQR-CHECK";
-const BAD_PASSWORDS = new Set(["password", "123456", "bitcoin", "wallet", "mnemonic", "seedphrase"]);
-const WORD_COUNTS = new Set([12, 15, 18, 21, 24]);
+const MAX_TEXT_BYTES = 2048;
+const BAD_PASSWORDS = new Set(["password", "123456", "bitcoin", "wallet", "secret"]);
 
 const $ = (selector) => document.querySelector(selector);
-const wordIndex = new Map((window.BIP39_ENGLISH_WORDS || []).map((word, index) => [word, index]));
 const qrDecoder = window.jsQR;
 
 const elements = {
@@ -16,7 +15,7 @@ const elements = {
   encryptForm: $("#encrypt-form"),
   recoverForm: $("#recover-form"),
   checkForm: $("#check-form"),
-  mnemonic: $("#mnemonic"),
+  plainText: $("#plain-text"),
   encryptPassword: $("#encrypt-password"),
   confirmPassword: $("#confirm-password"),
   recoverPassword: $("#recover-password"),
@@ -25,7 +24,7 @@ const elements = {
   fingerprintOutput: $("#fingerprint-output"),
   payloadInput: $("#payload-input"),
   checkPayloadInput: $("#check-payload-input"),
-  recoveredMnemonic: $("#recovered-mnemonic"),
+  recoveredText: $("#recovered-text"),
   encryptMessage: $("#encrypt-message"),
   recoverMessage: $("#recover-message"),
   checkMessage: $("#check-message"),
@@ -48,7 +47,7 @@ const elements = {
   printButton: $("#print-button"),
   exportPngButton: $("#export-png-button"),
   copyPayloadButton: $("#copy-payload-button"),
-  copyMnemonicButton: $("#copy-mnemonic-button")
+  copyTextButton: $("#copy-text-button")
 };
 
 let scannerStream = null;
@@ -65,14 +64,6 @@ function wipeBytes(value) {
   if (ArrayBuffer.isView(value)) value.fill(0);
 }
 
-function normalizeMnemonic(input) {
-  return input.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function bytesToBits(bytes) {
-  return Array.from(bytes, (byte) => byte.toString(2).padStart(8, "0")).join("");
-}
-
 function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -81,26 +72,20 @@ async function sha256(bytes) {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
 }
 
-async function validateMnemonic(mnemonic) {
-  const words = mnemonic.split(" ");
-  if (!WORD_COUNTS.has(words.length)) throw new Error("Invalid mnemonic.");
+function textBytes(text) {
+  return new TextEncoder().encode(text);
+}
 
-  const indexes = words.map((word) => wordIndex.get(word));
-  if (indexes.some((index) => index === undefined)) throw new Error("Invalid mnemonic.");
-
-  const bits = indexes.map((index) => index.toString(2).padStart(11, "0")).join("");
-  const checksumLength = words.length / 3;
-  const entropyLength = bits.length - checksumLength;
-  const entropyBits = bits.slice(0, entropyLength);
-  const checksumBits = bits.slice(entropyLength);
-  const entropy = new Uint8Array(entropyLength / 8);
-
-  for (let i = 0; i < entropy.length; i += 1) {
-    entropy[i] = parseInt(entropyBits.slice(i * 8, i * 8 + 8), 2);
+function validatePlainText(text) {
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new Error("Text cannot be empty.");
   }
-
-  const hashBits = bytesToBits(await sha256(entropy));
-  if (checksumBits !== hashBits.slice(0, checksumLength)) throw new Error("Invalid mnemonic.");
+  const bytes = textBytes(text);
+  try {
+    if (bytes.length > MAX_TEXT_BYTES) throw new Error(`Text is too large. Max ${MAX_TEXT_BYTES} UTF-8 bytes.`);
+  } finally {
+    wipeBytes(bytes);
+  }
 }
 
 function randomBytes(length) {
@@ -203,13 +188,13 @@ async function assertFingerprint(envelope) {
   if (await computeFingerprint(envelope) !== envelope.fp) throw new Error("Wrong password or corrupted QR.");
 }
 
-async function encryptMnemonic(mnemonic, password) {
+async function encryptText(plainText, password) {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
   const chkIv = randomBytes(12);
   const encoder = new TextEncoder();
   const passwordBytes = encoder.encode(password);
-  const mnemonicBytes = encoder.encode(mnemonic);
+  const plainTextBytes = encoder.encode(plainText);
   const checkBytes = encoder.encode(CHECK_TEXT);
   let ciphertext;
   let checkCiphertext;
@@ -219,7 +204,7 @@ async function encryptMnemonic(mnemonic, password) {
     ciphertext = new Uint8Array(await crypto.subtle.encrypt(
       { name: "AES-GCM", iv, tagLength: 128 },
       key,
-      mnemonicBytes
+      plainTextBytes
     ));
     checkCiphertext = new Uint8Array(await crypto.subtle.encrypt(
       { name: "AES-GCM", iv: chkIv, tagLength: 128 },
@@ -244,7 +229,7 @@ async function encryptMnemonic(mnemonic, password) {
     };
   } finally {
     wipeBytes(passwordBytes);
-    wipeBytes(mnemonicBytes);
+    wipeBytes(plainTextBytes);
     wipeBytes(checkBytes);
     wipeBytes(ciphertext);
     wipeBytes(checkCiphertext);
@@ -275,9 +260,13 @@ async function decryptPayload(payload, password) {
       throw new Error("Wrong password or corrupted QR.");
     }
 
-    const mnemonic = new TextDecoder().decode(plaintextBytes);
-    await validateMnemonic(mnemonic);
-    return mnemonic;
+    const plainText = new TextDecoder().decode(plaintextBytes);
+    try {
+      validatePlainText(plainText);
+    } catch {
+      throw new Error("Wrong password or corrupted QR.");
+    }
+    return plainText;
   } finally {
     wipeBytes(passwordBytes);
     wipeBytes(plaintextBytes);
@@ -481,7 +470,7 @@ function clearScannerCanvas() {
 }
 
 function clearSensitiveOutputs() {
-  clearField(elements.mnemonic);
+  clearField(elements.plainText);
   clearField(elements.encryptPassword);
   clearField(elements.confirmPassword);
   clearField(elements.recoverPassword);
@@ -490,12 +479,12 @@ function clearSensitiveOutputs() {
   clearField(elements.checkPayloadInput);
   clearField(elements.payloadOutput);
   clearField(elements.fingerprintOutput);
-  clearField(elements.recoveredMnemonic);
+  clearField(elements.recoveredText);
   clearField(elements.checkFingerprintOutput);
-  setEncryptState("idle", "No QR generated yet.", "Encrypt a mnemonic to generate the QR payload and fingerprint.");
-  setRecoverState("idle", "No mnemonic recovered yet.", "Load a QR payload and enter its password to reveal the mnemonic locally.");
-  setCheckState("idle", "If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.");
-  setCheckMessageState("idle", "No verification result yet.", "Check mode verifies the payload and password without decrypting the mnemonic into view.");
+  setEncryptState("idle", "No QR generated yet.", "Encrypt text to generate the QR payload and fingerprint.");
+  setRecoverState("idle", "No text recovered yet.", "Load a QR payload and enter its password to reveal the text locally.");
+  setCheckState("idle", "If the QR and password match, this shows the payload fingerprint without revealing the text.");
+  setCheckMessageState("idle", "No verification result yet.", "Check mode verifies the payload and password without decrypting the text into view.");
   elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
@@ -503,7 +492,7 @@ function clearSensitiveOutputs() {
   elements.printButton.disabled = true;
   elements.exportPngButton.disabled = true;
   elements.copyPayloadButton.disabled = true;
-  elements.copyMnemonicButton.disabled = true;
+  elements.copyTextButton.disabled = true;
   setMessage(elements.encryptMessage, "");
   setMessage(elements.recoverMessage, "");
   setMessage(elements.checkMessage, "");
@@ -772,11 +761,11 @@ async function handleEncrypt(event) {
   setEncryptState("progress", "Generating QR...", "Deriving the encryption key and building the payload locally.");
 
   try {
-    const mnemonic = normalizeMnemonic(elements.mnemonic.value);
+    const plainText = elements.plainText.value;
     assertPasswordNotEmpty(elements.encryptPassword.value);
     if (elements.encryptPassword.value !== elements.confirmPassword.value) throw new Error("Passwords do not match.");
-    await validateMnemonic(mnemonic);
-    const { payload, fingerprint } = await encryptMnemonic(mnemonic, elements.encryptPassword.value);
+    validatePlainText(plainText);
+    const { payload, fingerprint } = await encryptText(plainText, elements.encryptPassword.value);
     elements.payloadOutput.value = payload;
     elements.fingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
     elements.printFingerprint.textContent = `Fingerprint: MNQR-FP: ${fingerprint}`;
@@ -792,8 +781,8 @@ async function handleEncrypt(event) {
       warning || "Encrypted QR payload and fingerprint are ready."
     );
   } catch (error) {
-    setMessage(elements.encryptMessage, error.message || "Invalid mnemonic.", "error");
-    setEncryptState("error", "Generation failed.", error.message || "Invalid mnemonic.");
+    setMessage(elements.encryptMessage, error.message || "Invalid text.", "error");
+    setEncryptState("error", "Generation failed.", error.message || "Invalid text.");
   } finally {
     setBusy(elements.encryptForm, false);
   }
@@ -803,19 +792,19 @@ async function handleRecover(event) {
   event.preventDefault();
   stopScanner("Camera stopped. Image import and paste work everywhere.");
   setBusy(elements.recoverForm, true);
-  elements.recoveredMnemonic.value = "";
-  elements.copyMnemonicButton.disabled = true;
+  elements.recoveredText.value = "";
+  elements.copyTextButton.disabled = true;
   setMessage(elements.recoverMessage, "Decrypting locally...");
-  setRecoverState("progress", "Recovering mnemonic...", "Decrypting the QR payload locally with the provided password.");
+  setRecoverState("progress", "Recovering text...", "Decrypting the QR payload locally with the provided password.");
 
   try {
     const password = elements.recoverPassword.value;
     assertPasswordNotEmpty(password);
-    const mnemonic = await decryptPayload(elements.payloadInput.value, password);
-    elements.recoveredMnemonic.value = mnemonic;
-    elements.copyMnemonicButton.disabled = false;
-    setMessage(elements.recoverMessage, "Mnemonic recovered.", "success");
-    setRecoverState("success", "Mnemonic recovered.", "The payload and password matched, and the mnemonic is now visible on this page.");
+    const plainText = await decryptPayload(elements.payloadInput.value, password);
+    elements.recoveredText.value = plainText;
+    elements.copyTextButton.disabled = false;
+    setMessage(elements.recoverMessage, "Text recovered.", "success");
+    setRecoverState("success", "Text recovered.", "The payload and password matched, and the text is now visible on this page.");
   } catch (error) {
     const safeMessage = error.message === "Invalid QR payload."
       ? error.message
@@ -832,16 +821,16 @@ async function handleCheck(event) {
   stopScanner("Camera stopped. Image import and paste work everywhere.");
   setBusy(elements.checkForm, true);
   elements.checkFingerprintOutput.value = "";
-  setCheckState("progress", "Verifying the encrypted check value locally. The mnemonic stays hidden.");
+  setCheckState("progress", "Verifying the encrypted check value locally. The text stays hidden.");
   setMessage(elements.checkMessage, "Checking locally...");
-  setCheckMessageState("progress", "Checking QR...", "Verifying the payload and password locally without revealing the mnemonic.");
+  setCheckMessageState("progress", "Checking QR...", "Verifying the payload and password locally without revealing the text.");
 
   try {
     const password = elements.checkPassword.value;
     assertPasswordNotEmpty(password);
     const fingerprint = await checkPayload(elements.checkPayloadInput.value, password);
     elements.checkFingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
-    setCheckState("success", "The QR payload and password match. This fingerprint identifies that encrypted payload only; it does not reveal the mnemonic.");
+    setCheckState("success", "The QR payload and password match. This fingerprint identifies that encrypted payload only; it does not reveal the text.");
     setMessage(elements.checkMessage, "QR and password verified.", "success");
     setCheckMessageState("success", "QR verified.", "The encrypted payload fingerprint was recovered successfully.");
   } catch (error) {
@@ -864,7 +853,7 @@ function init() {
     return;
   }
 
-  if (wordIndex.size !== 2048 || typeof qrcode !== "function") {
+  if (typeof qrcode !== "function") {
     elements.supportError.textContent = "Required local assets failed to load.";
     elements.supportError.classList.remove("hidden");
     for (const control of document.querySelectorAll("button, input, textarea")) control.disabled = true;
@@ -877,7 +866,7 @@ function init() {
   elements.printButton.addEventListener("click", () => window.print());
   elements.exportPngButton.addEventListener("click", exportQrPng);
   elements.copyPayloadButton.addEventListener("click", () => copyText(elements.payloadOutput.value, elements.encryptMessage));
-  elements.copyMnemonicButton.addEventListener("click", () => copyText(elements.recoveredMnemonic.value, elements.recoverMessage));
+  elements.copyTextButton.addEventListener("click", () => copyText(elements.recoveredText.value, elements.recoverMessage));
   for (const button of document.querySelectorAll("[data-scan-target]")) {
     button.addEventListener("click", () => startScanner(button));
   }
