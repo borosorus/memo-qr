@@ -239,12 +239,10 @@
     </main>
 
     <section id="print-card" class="print-card" aria-hidden="true">
-      <h1>Encrypted Mnemonic QR</h1>
       <div id="print-qr"></div>
       <p><strong>Payload prefix:</strong> MNQR1</p>
       <p id="print-fingerprint"></p>
-      <p>This QR contains an encrypted mnemonic. To recover it, open the offline recovery tool and enter the QR unlock password.</p>
-      <p>Anyone with this QR can try password guesses offline, so keep it private.</p>
+      <p>Format: PBKDF2-SHA-256 + AES-256-GCM</p>
     </section>
 
     <script src="qr.min.js"></script>

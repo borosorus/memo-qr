@@ -390,7 +390,7 @@ function renderQR(text) {
   const qr = qrcode(0, "M");
   qr.addData(text);
   qr.make();
-  const svg = qr.createSvgTag(5, 2, "Encrypted mnemonic QR", "Encrypted mnemonic QR");
+  const svg = qr.createSvgTag(5, 2, "Encrypted payload QR", "Encrypted payload QR");
   elements.qrOutput.classList.remove("qr-placeholder");
   elements.qrOutput.innerHTML = svg;
   elements.printQr.innerHTML = svg;
