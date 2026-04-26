@@ -36,32 +36,42 @@
         <section id="encrypt-panel" class="panel active" role="tabpanel" aria-labelledby="encrypt-tab">
           <div class="grid two">
             <form id="encrypt-form" class="form">
-              <label>
-                <span>Mnemonic</span>
-                <textarea id="mnemonic" rows="7" autocomplete="off" spellcheck="false" placeholder="abandon ability ..."></textarea>
-              </label>
-              <label>
-                <span>QR unlock password</span>
-                <span class="password-row">
-                  <input id="encrypt-password" type="password" autocomplete="new-password">
-                  <button class="toggle-password" type="button" data-toggle-password="encrypt-password" aria-label="Show QR unlock password">Show</button>
-                </span>
-              </label>
-              <label>
-                <span>Confirm QR unlock password</span>
-                <span class="password-row">
-                  <input id="confirm-password" type="password" autocomplete="new-password">
-                  <button class="toggle-password" type="button" data-toggle-password="confirm-password" aria-label="Show confirmed QR unlock password">Show</button>
-                </span>
-              </label>
-              <div class="actions">
-                <button class="primary" type="submit">Encrypt & Generate QR</button>
-                <button type="button" data-clear>Clear</button>
-              </div>
+              <section class="step-block">
+                <p class="step-kicker">Step 1</p>
+                <label>
+                  <span>Enter mnemonic</span>
+                  <textarea id="mnemonic" rows="7" autocomplete="off" spellcheck="false" placeholder="abandon ability ..."></textarea>
+                </label>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 2</p>
+                <label>
+                  <span>Set QR unlock password</span>
+                  <span class="password-row">
+                    <input id="encrypt-password" type="password" autocomplete="new-password">
+                    <button class="toggle-password" type="button" data-toggle-password="encrypt-password" aria-label="Show QR unlock password">Show</button>
+                  </span>
+                </label>
+                <label>
+                  <span>Confirm QR unlock password</span>
+                  <span class="password-row">
+                    <input id="confirm-password" type="password" autocomplete="new-password">
+                    <button class="toggle-password" type="button" data-toggle-password="confirm-password" aria-label="Show confirmed QR unlock password">Show</button>
+                  </span>
+                </label>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 3</p>
+                <div class="actions">
+                  <button class="primary" type="submit">Encrypt & Generate QR</button>
+                  <button type="button" data-clear>Clear</button>
+                </div>
+              </section>
+              <p class="step-note">Generate the encrypted payload locally, then use the right side to print, copy, or save the fingerprint.</p>
               <p id="encrypt-message" class="message" role="status" aria-live="polite"></p>
             </form>
-
-            <div class="output-card">
+  
+            <div class="output-card result-pane">
               <p class="label">Encrypted QR code</p>
               <div id="qr-output" class="qr-frame qr-placeholder">QR appears here after encryption.</div>
               <label>
@@ -76,6 +86,10 @@
                 <button id="print-button" type="button" disabled>Print QR</button>
                 <button id="copy-payload-button" type="button" disabled>Copy payload</button>
               </div>
+              <div id="encrypt-result" class="result-status idle">
+                <p id="encrypt-result-title" class="result-status-title">No QR generated yet.</p>
+                <p id="encrypt-result-detail" class="result-status-detail">Encrypt a mnemonic to generate the QR payload and fingerprint.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -83,46 +97,60 @@
         <section id="recover-panel" class="panel" role="tabpanel" aria-labelledby="recover-tab" hidden>
           <div class="grid two">
             <form id="recover-form" class="form">
-              <label>
-                <span>Encrypted QR payload</span>
-                <textarea id="payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
-              </label>
-              <div class="scanner" id="scanner" data-payload-target="payload-input">
-                <div class="actions scanner-actions">
-                  <button id="scan-button" type="button" data-scan-target="payload-input">Scan QR</button>
-                  <label class="file-picker">
-                    <span>Import image</span>
-                    <input type="file" accept="image/*" data-import-file>
-                  </label>
-                  <button id="stop-scan-button" type="button" data-stop-scan hidden>Stop camera</button>
+              <section class="step-block">
+                <p class="step-kicker">Step 1</p>
+                <label>
+                  <span>Load encrypted QR payload</span>
+                  <textarea id="payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
+                </label>
+                <div class="scanner" id="scanner" data-payload-target="payload-input">
+                  <div class="actions scanner-actions">
+                    <button id="scan-button" type="button" data-scan-target="payload-input">Scan QR</button>
+                    <label class="file-picker">
+                      <span>Import image</span>
+                      <input type="file" accept="image/*" data-import-file>
+                    </label>
+                    <button id="stop-scan-button" type="button" data-stop-scan hidden>Stop camera</button>
+                  </div>
+                  <div id="scanner-preview" class="scanner-preview" hidden>
+                    <video id="scan-video" muted playsinline></video>
+                    <div class="scan-frame" aria-hidden="true"></div>
+                  </div>
+                  <canvas id="scan-canvas" hidden></canvas>
+                  <p id="scan-message" class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
                 </div>
-                <div id="scanner-preview" class="scanner-preview" hidden>
-                  <video id="scan-video" muted playsinline></video>
-                  <div class="scan-frame" aria-hidden="true"></div>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 2</p>
+                <label>
+                  <span>Enter QR unlock password</span>
+                  <span class="password-row">
+                    <input id="recover-password" type="password" autocomplete="current-password">
+                    <button class="toggle-password" type="button" data-toggle-password="recover-password" aria-label="Show QR unlock password">Show</button>
+                  </span>
+                </label>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 3</p>
+                <div class="actions">
+                  <button class="primary" type="submit">Decrypt</button>
+                  <button type="button" data-clear>Clear</button>
                 </div>
-                <canvas id="scan-canvas" hidden></canvas>
-                <p id="scan-message" class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
-              </div>
-              <label>
-                <span>QR unlock password</span>
-                <span class="password-row">
-                  <input id="recover-password" type="password" autocomplete="current-password">
-                  <button class="toggle-password" type="button" data-toggle-password="recover-password" aria-label="Show QR unlock password">Show</button>
-                </span>
-              </label>
-              <div class="actions">
-                <button class="primary" type="submit">Decrypt</button>
-                <button type="button" data-clear>Clear</button>
-              </div>
+              </section>
+              <p class="step-note">If the payload and password match, the mnemonic will appear on the right side only after local decryption succeeds.</p>
               <p id="recover-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
-            <div class="output-card secret-card">
+            <div class="output-card secret-card result-pane">
               <p class="label">Recovered mnemonic</p>
               <textarea id="recovered-mnemonic" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
               <div class="actions">
                 <button id="copy-mnemonic-button" type="button" disabled>Copy mnemonic</button>
                 <button type="button" data-clear>Clear</button>
+              </div>
+              <div id="recover-result" class="result-status idle">
+                <p id="recover-result-title" class="result-status-title">No mnemonic recovered yet.</p>
+                <p id="recover-result-detail" class="result-status-detail">Load a QR payload and enter its password to reveal the mnemonic locally.</p>
               </div>
             </div>
           </div>
@@ -131,41 +159,51 @@
         <section id="check-panel" class="panel" role="tabpanel" aria-labelledby="check-tab" hidden>
           <div class="grid two">
             <form id="check-form" class="form">
-              <label>
-                <span>Encrypted QR payload</span>
-                <textarea id="check-payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
-              </label>
-              <div class="scanner" id="check-scanner" data-payload-target="check-payload-input">
-                <div class="actions scanner-actions">
-                  <button type="button" data-scan-target="check-payload-input">Scan QR</button>
-                  <label class="file-picker">
-                    <span>Import image</span>
-                    <input type="file" accept="image/*" data-import-file>
-                  </label>
-                  <button type="button" data-stop-scan hidden>Stop camera</button>
+              <section class="step-block">
+                <p class="step-kicker">Step 1</p>
+                <label>
+                  <span>Load encrypted QR payload</span>
+                  <textarea id="check-payload-input" rows="8" autocomplete="off" spellcheck="false" placeholder="MNQR1..."></textarea>
+                </label>
+                <div class="scanner" id="check-scanner" data-payload-target="check-payload-input">
+                  <div class="actions scanner-actions">
+                    <button type="button" data-scan-target="check-payload-input">Scan QR</button>
+                    <label class="file-picker">
+                      <span>Import image</span>
+                      <input type="file" accept="image/*" data-import-file>
+                    </label>
+                    <button type="button" data-stop-scan hidden>Stop camera</button>
+                  </div>
+                  <div class="scanner-preview" hidden>
+                    <video muted playsinline></video>
+                    <div class="scan-frame" aria-hidden="true"></div>
+                  </div>
+                  <canvas hidden></canvas>
+                  <p class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
                 </div>
-                <div class="scanner-preview" hidden>
-                  <video muted playsinline></video>
-                  <div class="scan-frame" aria-hidden="true"></div>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 2</p>
+                <label>
+                  <span>Enter QR unlock password</span>
+                  <span class="password-row">
+                    <input id="check-password" type="password" autocomplete="current-password">
+                    <button class="toggle-password" type="button" data-toggle-password="check-password" aria-label="Show QR unlock password">Show</button>
+                  </span>
+                </label>
+              </section>
+              <section class="step-block">
+                <p class="step-kicker">Step 3</p>
+                <div class="actions">
+                  <button class="primary" type="submit">Check QR</button>
+                  <button type="button" data-clear>Clear</button>
                 </div>
-                <canvas hidden></canvas>
-                <p class="message" data-scan-message>Camera scanning requires HTTPS or localhost. Image import and paste work everywhere.</p>
-              </div>
-              <label>
-                <span>QR unlock password</span>
-                <span class="password-row">
-                  <input id="check-password" type="password" autocomplete="current-password">
-                  <button class="toggle-password" type="button" data-toggle-password="check-password" aria-label="Show QR unlock password">Show</button>
-                </span>
-              </label>
-              <div class="actions">
-                <button class="primary" type="submit">Check QR</button>
-                <button type="button" data-clear>Clear</button>
-              </div>
+              </section>
+              <p class="step-note">Check mode confirms the payload and password pair and recovers only the fingerprint, not the mnemonic.</p>
               <p id="check-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
-            <div class="output-card">
+            <div class="output-card result-pane">
               <p class="label">Check result</p>
               <div id="check-result" class="check-result">
                 <p id="check-status" class="check-status">No QR checked yet.</p>
@@ -174,6 +212,10 @@
                   <span>Encrypted payload fingerprint</span>
                   <input id="check-fingerprint-output" type="text" readonly>
                 </label>
+              </div>
+              <div id="check-result-message" class="result-status idle">
+                <p id="check-result-title" class="result-status-title">No verification result yet.</p>
+                <p id="check-result-detail" class="result-status-detail">Check mode verifies the payload and password without decrypting the mnemonic into view.</p>
               </div>
             </div>
           </div>

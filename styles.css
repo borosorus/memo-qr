@@ -187,6 +187,39 @@ h1 {
   gap: 16px;
 }
 
+.step-block {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.step-kicker,
+.step-note {
+  margin: 0;
+}
+
+.step-kicker {
+  color: var(--accent-dark);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.step-note {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.result-pane {
+  align-content: start;
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -309,6 +342,79 @@ input:focus {
 
 .secret-card textarea {
   min-height: 260px;
+}
+
+.result-status {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.result-status-title,
+.result-status-detail {
+  margin: 0;
+}
+
+.result-status-title {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.result-status-detail {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.result-status.idle {
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+.result-status.idle .result-status-title {
+  color: var(--muted);
+}
+
+.result-status.progress {
+  border-color: rgba(15, 107, 255, 0.35);
+  background: rgba(15, 107, 255, 0.06);
+}
+
+.result-status.progress .result-status-title {
+  color: var(--accent-dark);
+}
+
+.result-status.success {
+  border-color: rgba(8, 116, 67, 0.3);
+  background: rgba(8, 116, 67, 0.07);
+}
+
+.result-status.success .result-status-title {
+  color: var(--success);
+}
+
+.result-status.warning {
+  border-color: rgba(154, 90, 0, 0.28);
+  background: rgba(154, 90, 0, 0.07);
+}
+
+.result-status.warning .result-status-title {
+  color: #9a5a00;
+}
+
+.result-status.error {
+  border-color: rgba(180, 35, 24, 0.28);
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.result-status.error .result-status-title {
+  color: var(--danger);
 }
 
 .check-result {

@@ -29,9 +29,18 @@ const elements = {
   encryptMessage: $("#encrypt-message"),
   recoverMessage: $("#recover-message"),
   checkMessage: $("#check-message"),
+  encryptResult: $("#encrypt-result"),
+  encryptResultTitle: $("#encrypt-result-title"),
+  encryptResultDetail: $("#encrypt-result-detail"),
+  recoverResult: $("#recover-result"),
+  recoverResultTitle: $("#recover-result-title"),
+  recoverResultDetail: $("#recover-result-detail"),
   checkResult: $("#check-result"),
   checkStatus: $("#check-status"),
   checkDetail: $("#check-detail"),
+  checkResultMessage: $("#check-result-message"),
+  checkResultTitle: $("#check-result-title"),
+  checkResultDetail: $("#check-result-detail"),
   checkFingerprintOutput: $("#check-fingerprint-output"),
   qrOutput: $("#qr-output"),
   printQr: $("#print-qr"),
@@ -337,6 +346,12 @@ function setMessage(node, text, type = "") {
   node.className = `message ${type}`.trim();
 }
 
+function setResultStatus(card, titleNode, detailNode, state, title, detail) {
+  card.className = `result-status ${state}`.trim();
+  titleNode.textContent = title;
+  detailNode.textContent = detail;
+}
+
 function setCheckState(state, detail = "") {
   elements.checkResult.className = `check-result ${state}`.trim();
   elements.checkStatus.textContent = {
@@ -346,6 +361,29 @@ function setCheckState(state, detail = "") {
     error: "Fingerprint not verified."
   }[state] || "No QR checked yet.";
   elements.checkDetail.textContent = detail;
+}
+
+function setEncryptState(state, title, detail) {
+  setResultStatus(elements.encryptResult, elements.encryptResultTitle, elements.encryptResultDetail, state, title, detail);
+}
+
+function setRecoverState(state, title, detail) {
+  setResultStatus(elements.recoverResult, elements.recoverResultTitle, elements.recoverResultDetail, state, title, detail);
+}
+
+function setCheckMessageState(state, title, detail) {
+  setResultStatus(elements.checkResultMessage, elements.checkResultTitle, elements.checkResultDetail, state, title, detail);
+}
+
+function setScannerState(scanner, state, title, detail) {
+  if (!scanner || !scanner.target) return;
+  if (scanner.target === elements.payloadInput) {
+    setRecoverState(state, title, detail);
+    return;
+  }
+  if (scanner.target === elements.checkPayloadInput) {
+    setCheckMessageState(state, title, detail);
+  }
 }
 
 function renderQR(text) {
@@ -387,7 +425,10 @@ function clearSensitiveOutputs() {
   clearField(elements.fingerprintOutput);
   clearField(elements.recoveredMnemonic);
   clearField(elements.checkFingerprintOutput);
+  setEncryptState("idle", "No QR generated yet.", "Encrypt a mnemonic to generate the QR payload and fingerprint.");
+  setRecoverState("idle", "No mnemonic recovered yet.", "Load a QR payload and enter its password to reveal the mnemonic locally.");
   setCheckState("idle", "If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.");
+  setCheckMessageState("idle", "No verification result yet.", "Check mode verifies the payload and password without decrypting the mnemonic into view.");
   elements.qrOutput.className = "qr-frame qr-placeholder";
   elements.qrOutput.textContent = "QR appears here after encryption.";
   elements.printQr.textContent = "";
@@ -543,6 +584,7 @@ async function startScanner(button) {
   activeScanner = getScanner(button);
   if (!isCameraSupported()) {
     setMessage(activeScanner.message, "Camera scanning is unavailable. Import an image or paste the encrypted payload instead.", "error");
+    setScannerState(activeScanner, "error", "Camera unavailable.", "Import an image or paste the encrypted payload instead.");
     activeScanner = null;
     return;
   }
@@ -550,6 +592,7 @@ async function startScanner(button) {
   stopScanner();
   activeScanner = getScanner(button);
   setMessage(activeScanner.message, "Starting camera...");
+  setScannerState(activeScanner, "progress", "Starting camera...", "Point the camera at the QR code once the preview appears.");
   activeScanner.startButton.disabled = true;
 
   try {
@@ -560,9 +603,11 @@ async function startScanner(button) {
     await activeScanner.video.play();
     activeScanner.startButton.disabled = false;
     setMessage(activeScanner.message, "Point the camera at a Memo QR code.");
+    setScannerState(activeScanner, "progress", "Camera ready.", "Point the camera at a Memo QR code.");
     scanFrame();
   } catch {
     activeScanner.startButton.disabled = false;
+    setScannerState(activeScanner, "error", "Camera unavailable.", "Import an image or paste the encrypted payload instead.");
     stopScanner("Camera unavailable. Import an image or paste the encrypted payload instead.", "error");
   }
 }
@@ -613,12 +658,14 @@ function handleScanResult(rawValue, scanner = activeScanner, successMessage = "Q
   const payload = rawValue.trim();
   if (!payload.startsWith(PREFIX)) {
     if (scanner) setMessage(scanner.message, "Not a Memo QR payload.", "error");
+    setScannerState(scanner, "error", "Scan failed.", "The scanned code is not a Memo QR payload.");
     return;
   }
 
   if (scanner) scanner.target.value = payload;
   setMessage(elements.recoverMessage, "");
   setMessage(elements.checkMessage, "");
+  setScannerState(scanner, "success", "QR loaded.", "The payload was read successfully and is ready for the next step.");
   if (scanner && scanner === activeScanner) {
     stopScanner(successMessage, "success");
     return;
@@ -634,6 +681,7 @@ async function handleImageImport(input) {
   stopScanner();
   input.disabled = true;
   setMessage(scanner.message, "Reading image...");
+  setScannerState(scanner, "progress", "Reading image...", "Decoding the selected image locally for a Memo QR payload.");
 
   try {
     const result = await decodeQrFromFile(file, scanner.canvas);
@@ -641,6 +689,7 @@ async function handleImageImport(input) {
     handleScanResult(result.data, scanner, "QR payload loaded from image.");
   } catch (error) {
     setMessage(scanner.message, error.message || "Could not read image.", "error");
+    setScannerState(scanner, "error", "Image import failed.", error.message || "Could not read image.");
   } finally {
     input.value = "";
     input.disabled = false;
@@ -652,6 +701,7 @@ async function handleEncrypt(event) {
   event.preventDefault();
   setBusy(elements.encryptForm, true);
   setMessage(elements.encryptMessage, "Encrypting locally...");
+  setEncryptState("progress", "Generating QR...", "Deriving the encryption key and building the payload locally.");
 
   try {
     const mnemonic = normalizeMnemonic(elements.mnemonic.value);
@@ -667,8 +717,14 @@ async function handleEncrypt(event) {
     elements.copyPayloadButton.disabled = false;
     const warning = passwordWarningText(elements.encryptPassword.value);
     setMessage(elements.encryptMessage, warning || "Encrypted QR payload generated.", warning ? "warning" : "success");
+    setEncryptState(
+      warning ? "warning" : "success",
+      "QR generated.",
+      warning || "Encrypted QR payload and fingerprint are ready."
+    );
   } catch (error) {
     setMessage(elements.encryptMessage, error.message || "Invalid mnemonic.", "error");
+    setEncryptState("error", "Generation failed.", error.message || "Invalid mnemonic.");
   } finally {
     setBusy(elements.encryptForm, false);
   }
@@ -681,6 +737,7 @@ async function handleRecover(event) {
   elements.recoveredMnemonic.value = "";
   elements.copyMnemonicButton.disabled = true;
   setMessage(elements.recoverMessage, "Decrypting locally...");
+  setRecoverState("progress", "Recovering mnemonic...", "Decrypting the QR payload locally with the provided password.");
 
   try {
     const password = elements.recoverPassword.value;
@@ -689,11 +746,13 @@ async function handleRecover(event) {
     elements.recoveredMnemonic.value = mnemonic;
     elements.copyMnemonicButton.disabled = false;
     setMessage(elements.recoverMessage, "Mnemonic recovered.", "success");
+    setRecoverState("success", "Mnemonic recovered.", "The payload and password matched, and the mnemonic is now visible on this page.");
   } catch (error) {
     const safeMessage = error.message === "Invalid QR payload."
       ? error.message
       : "Wrong password or corrupted QR.";
     setMessage(elements.recoverMessage, safeMessage, "error");
+    setRecoverState("error", "Recovery failed.", safeMessage);
   } finally {
     setBusy(elements.recoverForm, false);
   }
@@ -706,6 +765,7 @@ async function handleCheck(event) {
   elements.checkFingerprintOutput.value = "";
   setCheckState("progress", "Verifying the encrypted check value locally. The mnemonic stays hidden.");
   setMessage(elements.checkMessage, "Checking locally...");
+  setCheckMessageState("progress", "Checking QR...", "Verifying the payload and password locally without revealing the mnemonic.");
 
   try {
     const password = elements.checkPassword.value;
@@ -714,12 +774,14 @@ async function handleCheck(event) {
     elements.checkFingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
     setCheckState("success", "The QR payload and password match. This fingerprint identifies that encrypted payload only; it does not reveal the mnemonic.");
     setMessage(elements.checkMessage, "QR and password verified.", "success");
+    setCheckMessageState("success", "QR verified.", "The encrypted payload fingerprint was recovered successfully.");
   } catch (error) {
     const safeMessage = error.message === "Invalid QR payload."
       ? error.message
       : "Wrong password or corrupted QR.";
     setCheckState("error", "The QR could not be validated. This usually means the password is wrong, the image does not contain this QR payload, or the payload is corrupted.");
     setMessage(elements.checkMessage, safeMessage, "error");
+    setCheckMessageState("error", "Verification failed.", safeMessage);
   } finally {
     setBusy(elements.checkForm, false);
   }
