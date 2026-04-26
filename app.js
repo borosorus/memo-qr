@@ -46,6 +46,7 @@ const elements = {
   printQr: $("#print-qr"),
   printFingerprint: $("#print-fingerprint"),
   printButton: $("#print-button"),
+  exportPngButton: $("#export-png-button"),
   copyPayloadButton: $("#copy-payload-button"),
   copyMnemonicButton: $("#copy-mnemonic-button")
 };
@@ -396,6 +397,72 @@ function renderQR(text) {
   elements.printQr.innerHTML = svg;
 }
 
+function currentQrSvg() {
+  return elements.qrOutput.querySelector("svg");
+}
+
+function svgToPngDataUrl(svg) {
+  return new Promise((resolve, reject) => {
+    const markup = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new Image();
+
+    image.onload = () => {
+      const width = image.naturalWidth || 1024;
+      const height = image.naturalHeight || width;
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      canvas.width = width;
+      canvas.height = height;
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/png"));
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("PNG export failed."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function exportQrPng() {
+  const svg = currentQrSvg();
+  if (!svg) {
+    setMessage(elements.encryptMessage, "Generate a QR before exporting PNG.", "error");
+    setEncryptState("error", "PNG export failed.", "Generate a QR before exporting PNG.");
+    return;
+  }
+
+  elements.exportPngButton.disabled = true;
+  setMessage(elements.encryptMessage, "Preparing PNG...");
+  setEncryptState("progress", "Preparing PNG...", "Rendering the current QR to a local PNG file.");
+
+  try {
+    const dataUrl = await svgToPngDataUrl(svg);
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = "mnqr1-qr.png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setMessage(elements.encryptMessage, "PNG exported.", "success");
+    setEncryptState("success", "QR ready.", "Encrypted QR, fingerprint, and PNG export are ready.");
+  } catch (error) {
+    setMessage(elements.encryptMessage, error.message || "PNG export failed.", "error");
+    setEncryptState("error", "PNG export failed.", error.message || "PNG export failed.");
+  } finally {
+    elements.exportPngButton.disabled = false;
+  }
+}
+
 function clearField(input) {
   input.value = "";
   if (typeof input.setSelectionRange === "function") input.setSelectionRange(0, 0);
@@ -434,6 +501,7 @@ function clearSensitiveOutputs() {
   elements.printQr.textContent = "";
   elements.printFingerprint.textContent = "";
   elements.printButton.disabled = true;
+  elements.exportPngButton.disabled = true;
   elements.copyPayloadButton.disabled = true;
   elements.copyMnemonicButton.disabled = true;
   setMessage(elements.encryptMessage, "");
@@ -714,6 +782,7 @@ async function handleEncrypt(event) {
     elements.printFingerprint.textContent = `Fingerprint: MNQR-FP: ${fingerprint}`;
     renderQR(payload);
     elements.printButton.disabled = false;
+    elements.exportPngButton.disabled = false;
     elements.copyPayloadButton.disabled = false;
     const warning = passwordWarningText(elements.encryptPassword.value);
     setMessage(elements.encryptMessage, warning || "Encrypted QR payload generated.", warning ? "warning" : "success");
@@ -806,6 +875,7 @@ function init() {
   elements.recoverForm.addEventListener("submit", handleRecover);
   elements.checkForm.addEventListener("submit", handleCheck);
   elements.printButton.addEventListener("click", () => window.print());
+  elements.exportPngButton.addEventListener("click", exportQrPng);
   elements.copyPayloadButton.addEventListener("click", () => copyText(elements.payloadOutput.value, elements.encryptMessage));
   elements.copyMnemonicButton.addEventListener("click", () => copyText(elements.recoveredMnemonic.value, elements.recoverMessage));
   for (const button of document.querySelectorAll("[data-scan-target]")) {
