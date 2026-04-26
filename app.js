@@ -384,12 +384,13 @@ function clearSensitiveOutputs() {
   setMessage(elements.encryptMessage, "");
   setMessage(elements.recoverMessage, "");
   setMessage(elements.checkMessage, "");
+  for (const input of document.querySelectorAll("[data-import-file]")) input.value = "";
   for (const button of document.querySelectorAll("[data-toggle-password]")) {
     button.textContent = "Show";
   }
 }
 
-function clearSecrets(message = "Camera stopped. Paste works everywhere.") {
+function clearSecrets(message = "Camera stopped. Image import and paste work everywhere.") {
   stopScanner(message);
   clearScannerCanvas();
   clearSensitiveOutputs();
@@ -412,7 +413,7 @@ async function copyText(text, messageNode) {
 }
 
 function switchTab(name) {
-  if (name !== "recover") stopScanner("Camera stopped. Paste works everywhere.");
+  stopScanner("Camera stopped. Image import and paste work everywhere.");
   for (const tab of document.querySelectorAll(".tab")) {
     const active = tab.dataset.tab === name;
     tab.classList.toggle("active", active);
@@ -439,18 +440,71 @@ function isCameraSupported() {
   return Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof qrDecoder === "function");
 }
 
-function getScanner(button) {
-  const root = button.closest(".scanner");
+function getScanner(node) {
+  const root = node.closest(".scanner");
   return {
     root,
-    target: document.getElementById(button.dataset.scanTarget),
-    startButton: button,
+    target: document.getElementById(node.dataset.scanTarget || root.dataset.scanTarget),
+    startButton: root.querySelector("[data-scan-target]"),
     stopButton: root.querySelector("[data-stop-scan]"),
     preview: root.querySelector(".scanner-preview"),
     video: root.querySelector("video"),
     canvas: root.querySelector("canvas"),
     message: root.querySelector("[data-scan-message]")
   };
+}
+
+function getSourceDimensions(source) {
+  return {
+    width: source.naturalWidth || source.videoWidth || source.width || 0,
+    height: source.naturalHeight || source.videoHeight || source.height || 0
+  };
+}
+
+function decodeQrFromSource(source, canvas, maxDimension = 1440) {
+  const { width: sourceWidth, height: sourceHeight } = getSourceDimensions(source);
+  if (!sourceWidth || !sourceHeight) throw new Error("Could not read image.");
+
+  const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.floor(sourceWidth * scale));
+  const height = Math.max(1, Math.floor(sourceHeight * scale));
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  canvas.width = width;
+  canvas.height = height;
+  context.drawImage(source, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  return qrDecoder(imageData.data, width, height, { inversionAttempts: "dontInvert" });
+}
+
+function loadImageElement(objectUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not read image."));
+    image.src = objectUrl;
+  });
+}
+
+async function decodeQrFromFile(file, canvas) {
+  if (!file || (file.type && !file.type.startsWith("image/"))) throw new Error("Choose an image file.");
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    throw new Error("Image import is unavailable in this browser.");
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  let source;
+  try {
+    source = typeof createImageBitmap === "function"
+      ? await createImageBitmap(file)
+      : await loadImageElement(objectUrl);
+    return decodeQrFromSource(source, canvas);
+  } finally {
+    if (source && typeof source.close === "function") source.close();
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 async function requestCameraStream() {
@@ -468,7 +522,7 @@ async function requestCameraStream() {
 async function startScanner(button) {
   activeScanner = getScanner(button);
   if (!isCameraSupported()) {
-    setMessage(activeScanner.message, "Camera scanning is unavailable. Paste the encrypted payload instead.", "error");
+    setMessage(activeScanner.message, "Camera scanning is unavailable. Import an image or paste the encrypted payload instead.", "error");
     activeScanner = null;
     return;
   }
@@ -489,7 +543,7 @@ async function startScanner(button) {
     scanFrame();
   } catch {
     activeScanner.startButton.disabled = false;
-    stopScanner("Camera unavailable. Paste the encrypted payload instead.", "error");
+    stopScanner("Camera unavailable. Import an image or paste the encrypted payload instead.", "error");
   }
 }
 
@@ -525,34 +579,53 @@ function scanFrame() {
   if (scannerBusy || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
 
   scannerBusy = true;
-  const scale = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
-  const width = Math.max(1, Math.floor(video.videoWidth * scale));
-  const height = Math.max(1, Math.floor(video.videoHeight * scale));
-  const canvas = activeScanner.canvas;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
+  let result;
+  try {
+    result = decodeQrFromSource(video, activeScanner.canvas, 720);
+  } finally {
+    scannerBusy = false;
+  }
 
-  canvas.width = width;
-  canvas.height = height;
-  context.drawImage(video, 0, 0, width, height);
-
-  const imageData = context.getImageData(0, 0, width, height);
-  const result = qrDecoder(imageData.data, width, height, { inversionAttempts: "dontInvert" });
-  scannerBusy = false;
-
-  if (result && result.data) handleScanResult(result.data);
+  if (result && result.data) handleScanResult(result.data, activeScanner, "QR payload scanned.");
 }
 
-function handleScanResult(rawValue) {
+function handleScanResult(rawValue, scanner = activeScanner, successMessage = "QR payload scanned.") {
   const payload = rawValue.trim();
   if (!payload.startsWith(PREFIX)) {
-    if (activeScanner) setMessage(activeScanner.message, "Not a Memo QR payload.");
+    if (scanner) setMessage(scanner.message, "Not a Memo QR payload.", "error");
     return;
   }
 
-  if (activeScanner) activeScanner.target.value = payload;
+  if (scanner) scanner.target.value = payload;
   setMessage(elements.recoverMessage, "");
   setMessage(elements.checkMessage, "");
-  stopScanner("QR payload scanned.", "success");
+  if (scanner && scanner === activeScanner) {
+    stopScanner(successMessage, "success");
+    return;
+  }
+  if (scanner) setMessage(scanner.message, successMessage, "success");
+}
+
+async function handleImageImport(input) {
+  const scanner = getScanner(input);
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  stopScanner();
+  input.disabled = true;
+  setMessage(scanner.message, "Reading image...");
+
+  try {
+    const result = await decodeQrFromFile(file, scanner.canvas);
+    if (!result || !result.data) throw new Error("No QR code found in image.");
+    handleScanResult(result.data, scanner, "QR payload loaded from image.");
+  } catch (error) {
+    setMessage(scanner.message, error.message || "Could not read image.", "error");
+  } finally {
+    input.value = "";
+    input.disabled = false;
+    clearScannerCanvas();
+  }
 }
 
 async function handleEncrypt(event) {
@@ -583,7 +656,7 @@ async function handleEncrypt(event) {
 
 async function handleRecover(event) {
   event.preventDefault();
-  stopScanner("Camera stopped. Paste works everywhere.");
+  stopScanner("Camera stopped. Image import and paste work everywhere.");
   setBusy(elements.recoverForm, true);
   elements.recoveredMnemonic.value = "";
   elements.copyMnemonicButton.disabled = true;
@@ -608,7 +681,7 @@ async function handleRecover(event) {
 
 async function handleCheck(event) {
   event.preventDefault();
-  stopScanner("Camera stopped. Paste works everywhere.");
+  stopScanner("Camera stopped. Image import and paste work everywhere.");
   setBusy(elements.checkForm, true);
   elements.checkFingerprintOutput.value = "";
   elements.checkStatus.textContent = "Checking QR...";
@@ -657,7 +730,10 @@ function init() {
     button.addEventListener("click", () => startScanner(button));
   }
   for (const button of document.querySelectorAll("[data-stop-scan]")) {
-    button.addEventListener("click", () => stopScanner("Camera stopped. Paste works everywhere."));
+    button.addEventListener("click", () => stopScanner("Camera stopped. Image import and paste work everywhere."));
+  }
+  for (const input of document.querySelectorAll("[data-import-file]")) {
+    input.addEventListener("change", () => handleImageImport(input));
   }
   window.addEventListener("beforeunload", () => clearSecrets());
   window.addEventListener("pagehide", () => clearSecrets());
@@ -665,13 +741,13 @@ function init() {
     if (event.persisted) clearSecrets();
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) stopScanner("Camera stopped. Paste works everywhere.");
+    if (document.hidden) stopScanner("Camera stopped. Image import and paste work everywhere.");
   });
 
   if (!isCameraSupported()) {
     for (const button of document.querySelectorAll("[data-scan-target]")) {
       button.disabled = true;
-      setMessage(button.closest(".scanner").querySelector("[data-scan-message]"), "Camera scanning is unavailable. Paste the encrypted payload instead.");
+      setMessage(button.closest(".scanner").querySelector("[data-scan-message]"), "Camera scanning is unavailable. Import an image or paste the encrypted payload instead.");
     }
   }
 

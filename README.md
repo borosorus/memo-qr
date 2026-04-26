@@ -19,7 +19,7 @@ Use the Check tab to verify a QR and password without displaying the mnemonic.
 
 The fingerprint identifies one encrypted payload. Re-encrypting the same mnemonic creates a new salt and IV, so it also creates a new fingerprint.
 
-Recover and Check also include optional camera scanning. Browsers usually allow camera access only on HTTPS origins or `localhost`; if camera access is unavailable, paste the encrypted payload instead.
+Recover and Check also include optional camera scanning and QR image import. Browsers usually allow camera access only on HTTPS origins or `localhost`; if camera access is unavailable, you can still import an image or paste the encrypted payload.
 
 ## Security Model
 
@@ -57,6 +57,7 @@ Included:
 - Check a QR and password without displaying the mnemonic.
 - Render a printable encrypted QR.
 - Scan an encrypted QR with a desktop webcam or mobile camera when the browser allows camera access.
+- Import a QR image locally for recovery or check mode.
 - Provide encrypted text payload backup.
 
 Excluded:

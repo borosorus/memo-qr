@@ -339,6 +339,44 @@ input:focus {
   gap: 8px;
 }
 
+.file-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.file-picker:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 107, 255, 0.1);
+}
+
+.file-picker:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 107, 255, 0.1);
+}
+
+.file-picker span {
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+}
+
+.file-picker input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .scanner-preview {
   position: relative;
   overflow: hidden;
