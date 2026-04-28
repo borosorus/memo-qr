@@ -276,7 +276,7 @@ async function decryptPayload(payload, password) {
     }
 
     const mnemonic = new TextDecoder().decode(plaintextBytes);
-    await validateMnemonic(mnemonic);
+    //await validateMnemonic(mnemonic);
     return mnemonic;
   } finally {
     wipeBytes(passwordBytes);
@@ -775,7 +775,7 @@ async function handleEncrypt(event) {
     const mnemonic = normalizeMnemonic(elements.mnemonic.value);
     assertPasswordNotEmpty(elements.encryptPassword.value);
     if (elements.encryptPassword.value !== elements.confirmPassword.value) throw new Error("Passwords do not match.");
-    await validateMnemonic(mnemonic);
+    //await validateMnemonic(mnemonic);
     const { payload, fingerprint } = await encryptMnemonic(mnemonic, elements.encryptPassword.value);
     elements.payloadOutput.value = payload;
     elements.fingerprintOutput.value = `MNQR-FP: ${fingerprint}`;
