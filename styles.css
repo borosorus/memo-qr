@@ -149,8 +149,10 @@ h1 {
 .tabs {
   display: flex;
   gap: 8px;
+  margin: 18px 18px 0;
   padding: 10px;
   border-bottom: 1px solid var(--line);
+  border-radius: 16px 16px 0 0;
   background: var(--surface-soft);
 }
 
@@ -164,6 +166,100 @@ h1 {
   color: #fff;
   border-color: #172033;
   background: #172033;
+}
+
+.mode-step {
+  display: grid;
+  gap: 14px;
+  margin: 18px 18px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(15, 107, 255, 0.08), rgba(15, 107, 255, 0.025) 52%, rgba(255, 255, 255, 0.96)),
+    rgba(248, 250, 252, 0.92);
+}
+
+.mode-step-header {
+  display: grid;
+  gap: 8px;
+}
+
+.mode-title,
+.mode-intro,
+.mode-help {
+  margin: 0;
+}
+
+.mode-title {
+  font-size: clamp(1.15rem, 2vw, 1.35rem);
+  letter-spacing: -0.03em;
+}
+
+.mode-intro,
+.mode-help {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.mode-intro {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+}
+
+.mode-help {
+  font-size: 0.92rem;
+}
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mode-option {
+  display: grid;
+  gap: 6px;
+  min-height: 96px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: none;
+}
+
+.mode-option-title,
+.mode-option-detail {
+  display: block;
+}
+
+.mode-option-title {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mode-option-detail {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.mode-option.active {
+  border-color: rgba(15, 107, 255, 0.45);
+  background: #fff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.mode-option.active .mode-option-title {
+  color: var(--accent-dark);
+}
+
+.mode-option:hover:not(.active):not(:disabled) {
+  border-color: rgba(15, 107, 255, 0.28);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: none;
 }
 
 .panel {
@@ -591,6 +687,10 @@ input:focus {
     grid-template-columns: 1fr;
   }
 
+  .mode-switch {
+    grid-template-columns: 1fr;
+  }
+
   .shell {
     width: min(100% - 22px, 720px);
     padding-top: 24px;
@@ -650,7 +750,13 @@ input:focus {
     position: sticky;
     top: 0;
     z-index: 2;
+    margin: 14px 14px 0;
     padding: 8px;
+  }
+
+  .mode-step {
+    margin: 14px 14px 0;
+    padding: 14px;
   }
 
   .panel {

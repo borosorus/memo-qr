@@ -12,10 +12,10 @@
       <section class="hero" aria-labelledby="page-title">
         <div>
           <p class="eyebrow">Local only · No storage · No network</p>
-          <h1 id="page-title">Encrypt a mnemonic into an offline QR.</h1>
+          <h1 id="page-title">Encrypt content into an offline QR.</h1>
           <p class="lede">
-            Memo QR turns a BIP39 English mnemonic and a QR unlock password into
-            an encrypted payload that can be printed, stored, and recovered offline.
+            Memo QR turns validated mnemonics or plain text and a QR unlock password
+            into an encrypted payload that can be printed, stored, and recovered offline.
           </p>
         </div>
         <aside class="threat-card" aria-label="Security warning">
@@ -24,8 +24,29 @@
         </aside>
       </section>
 
-      <section class="app-card" aria-label="Mnemonic QR tool">
+      <section class="app-card" aria-label="Encrypted content QR tool">
         <div id="support-error" class="banner error hidden" role="alert"></div>
+
+        <section id="mode-bar" class="mode-step" aria-label="Content type">
+          <div class="mode-step-header">
+            <p class="step-kicker">Start Here</p>
+            <div>
+              <h2 class="mode-title">Choose what this QR protects</h2>
+              <p class="mode-intro">This choice applies to both Encrypt and Recover until you switch it.</p>
+            </div>
+          </div>
+          <div class="mode-switch" role="tablist" aria-label="Content type selector">
+            <button class="mode-option active" type="button" role="tab" aria-selected="true" id="mode-mnemonic" data-mode="mnemonic">
+              <span class="mode-option-title">Mnemonic</span>
+              <span class="mode-option-detail">BIP39 English or Monero 13 / 25-word phrases</span>
+            </button>
+            <button class="mode-option" type="button" role="tab" aria-selected="false" id="mode-text" data-mode="text">
+              <span class="mode-option-title">Text</span>
+              <span class="mode-option-detail">Exact plain text, preserved as entered, up to 2048 UTF-8 bytes</span>
+            </button>
+          </div>
+          <p id="mode-help" class="mode-help">Use mnemonic mode for BIP39 English and Monero 13 or 25-word phrases.</p>
+        </section>
 
         <div class="tabs" role="tablist" aria-label="Tool mode">
           <button class="tab active" type="button" role="tab" aria-selected="true" aria-controls="encrypt-panel" id="encrypt-tab" data-tab="encrypt">Encrypt</button>
@@ -39,7 +60,7 @@
               <section class="step-block">
                 <p class="step-kicker">Step 1</p>
                 <label>
-                  <span>Enter mnemonic</span>
+                  <span id="encrypt-input-label">Enter mnemonic</span>
                   <textarea id="mnemonic" rows="7" autocomplete="off" spellcheck="false" placeholder="abandon ability ..."></textarea>
                 </label>
               </section>
@@ -67,7 +88,7 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">Generate the encrypted payload locally, then use the right side to print, copy, or save the fingerprint.</p>
+              <p id="encrypt-step-note" class="step-note">Generate the encrypted payload locally, then use the right side to print, copy, or save the fingerprint.</p>
               <p id="encrypt-message" class="message" role="status" aria-live="polite"></p>
             </form>
   
@@ -138,12 +159,12 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">If the payload and password match, the mnemonic will appear on the right side only after local decryption succeeds.</p>
+              <p id="recover-step-note" class="step-note">If the payload and password match, the mnemonic will appear on the right side only after local decryption succeeds.</p>
               <p id="recover-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
             <div class="output-card secret-card result-pane">
-              <p class="label">Recovered mnemonic</p>
+              <p id="recover-output-label" class="label">Recovered mnemonic</p>
               <textarea id="recovered-mnemonic" rows="8" readonly spellcheck="false" placeholder="Hidden until decryption succeeds."></textarea>
               <div class="actions">
                 <button id="copy-mnemonic-button" type="button" disabled>Copy mnemonic</button>
@@ -200,7 +221,7 @@
                   <button type="button" data-clear>Clear</button>
                 </div>
               </section>
-              <p class="step-note">Check mode confirms the payload and password pair and recovers only the fingerprint, not the mnemonic.</p>
+              <p class="step-note">Check mode confirms the payload and password pair and recovers only the fingerprint, not the decrypted content.</p>
               <p id="check-message" class="message" role="status" aria-live="polite"></p>
             </form>
 
@@ -208,7 +229,7 @@
               <p class="label">Check result</p>
               <div id="check-result" class="check-result">
                 <p id="check-status" class="check-status">No QR checked yet.</p>
-                <p id="check-detail" class="check-detail">If the QR and password match, this shows the payload fingerprint without revealing the mnemonic.</p>
+                <p id="check-detail" class="check-detail">If the QR and password match, this shows the payload fingerprint without revealing the decrypted content.</p>
                 <label>
                   <span>Encrypted payload fingerprint</span>
                   <input id="check-fingerprint-output" type="text" readonly>
@@ -216,7 +237,7 @@
               </div>
               <div id="check-result-message" class="result-status idle">
                 <p id="check-result-title" class="result-status-title">No verification result yet.</p>
-                <p id="check-result-detail" class="result-status-detail">Check mode verifies the payload and password without decrypting the mnemonic into view.</p>
+                <p id="check-result-detail" class="result-status-detail">Check mode verifies the payload and password without decrypting the content into view.</p>
               </div>
             </div>
           </div>
@@ -234,7 +255,7 @@
         </article>
         <article>
           <h2>Focused payload</h2>
-          <p>The QR contains ciphertext plus a check verifier: no wallet name, hint, date, or plaintext mnemonic.</p>
+          <p>The QR contains ciphertext plus a check verifier: no wallet name, hint, date, or plaintext content.</p>
         </article>
       </section>
     </main>
@@ -249,6 +270,7 @@
     <script src="qr.min.js"></script>
     <script src="jsqr.min.js"></script>
     <script src="bip39-english.js"></script>
+    <script src="monero-english.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
